@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fooocus Inpaint & Modification Studio</title>
+    <title>Fibby - AI Inpainting & Modification Studio</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -120,7 +120,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Fooocus Inpaint & Modification Studio</h1>
+        <h1>Fibby - AI Inpainting & Modification Studio</h1>
 
         <div class="section">
             <label for="imageUpload">1. Upload Base Image</label>
@@ -151,13 +151,13 @@
         <button id="generateBtn" style="width: 100%;">Generate Modification</button>
 
         <div class="loading" id="loadingIndicator">
-            <p>Automating Fooocus (Uploading base image, simulating exact mask drawing on Fooocus canvas, generating)...</p>
+            <p>Fibby is automating Fooocus (Uploading base image, replaying exact mask strokes, generating modification)...</p>
         </div>
 
         <div class="debug-log" id="debugLog"></div>
 
         <div id="result-container" style="display:none;">
-            <h3>Final Result from Fooocus:</h3>
+            <h3>Final Result from Fibby:</h3>
             <img id="result-img" alt="Generated Result">
         </div>
     </div>
@@ -280,7 +280,7 @@
             loadingIndicator.style.display = 'block';
             resultContainer.style.display = 'none';
             debugLog.innerHTML = '';
-            logMessage("Starting request: sending base image and exact drawn mask coordinates to server...");
+            logMessage("Starting Fibby request: sending base image and exact mask points to server...");
 
             try {
                 const response = await fetch('http://127.0.0.1:8000/api/inpaint', {
@@ -318,7 +318,7 @@
                     }
 
                     if (foundImage) {
-                        logMessage("Success! Received generated image URL from Fooocus.");
+                        logMessage("Success! Received generated image URL from Fibby/Fooocus.");
                         resultImg.src = foundImage;
                         resultContainer.style.display = 'block';
                     } else {
