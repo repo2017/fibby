@@ -3,162 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fibby - AI Inpainting & Modification Studio</title>
+    <title>Fibby Studio - Disco Night AI Inpainter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: #121212;
-            color: #e0e0e0;
+        :root {
+            --bg-dark: #090510;
+            --bg-card: rgba(22, 12, 36, 0.75);
+            --bg-input: rgba(35, 20, 56, 0.6);
+            --pink-neon: #ff007f;
+            --pink-glow: #ec4899;
+            --purple-neon: #a855f7;
+            --purple-deep: #6b21a8;
+            --gray-metallic: #27272a;
+            --gray-light: #a1a1aa;
+            --text-white: #f8fafc;
+            --border-neon: rgba(255, 0, 127, 0.35);
         }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: #1e1e1e;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        h1 {
-            text-align: center;
-            color: #ffffff;
-        }
-        .section {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        input[type="file"], select, textarea, input[type="range"] {
-            width: 100%;
-            padding: 10px;
-            background: #2d2d2d;
-            border: 1px solid #444;
-            color: #fff;
-            border-radius: 4px;
+
+        * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            min-height: 100vh;
+            padding: 30px 15px;
+            background-image:
+                radial-gradient(circle at 15% 15%, rgba(255, 0, 127, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(18, 10, 33, 1) 0%, rgba(9, 5, 16, 1) 100%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Animated Disco Lights */
+        .disco-bg-light {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 300px;
+            background: linear-gradient(90deg, var(--pink-neon), var(--purple-neon));
+            filter: blur(140px);
+            opacity: 0.25;
+            z-index: -1;
+            pointer-events: none;
+            animation: pulse-light 6s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-light {
+            0% { opacity: 0.2; transform: translateX(-50%) scale(0.9); }
+            100% { opacity: 0.35; transform: translateX(-50%) scale(1.15); }
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-neon);
+            border-radius: 24px;
+            padding: 35px;
+            box-shadow:
+                0 0 35px rgba(255, 0, 127, 0.15),
+                0 0 70px rgba(168, 85, 247, 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+            position: relative;
+        }
+
+        .title-badge {
+            display: inline-block;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            background: linear-gradient(90deg, rgba(255,0,127,0.2), rgba(168,85,247,0.2));
+            border: 1px solid rgba(255, 0, 127, 0.5);
+            border-radius: 50px;
+            color: var(--pink-glow);
+            margin-bottom: 12px;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffffff 0%, #f472b6 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--gray-light);
+            font-size: 1rem;
+            margin-top: 6px;
+        }
+
+        .section {
+            margin-bottom: 28px;
+            background: rgba(15, 8, 25, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 22px;
+            border-radius: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .section:hover {
+            border-color: rgba(168, 85, 247, 0.3);
+        }
+
+        label.section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 14px;
+        }
+
+        label.section-title span.step-num {
+            background: linear-gradient(135deg, var(--pink-neon), var(--purple-neon));
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            box-shadow: 0 0 12px rgba(255,0,127,0.5);
+        }
+
+        /* Upload Area */
+        .upload-box {
+            position: relative;
+            border: 2px dashed rgba(255, 0, 127, 0.4);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            background: rgba(255, 0, 127, 0.02);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            border-color: var(--pink-neon);
+            background: rgba(255, 0, 127, 0.06);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+        }
+
+        .upload-box input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 38px;
             margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--pink-neon), var(--purple-neon));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        textarea {
-            resize: vertical;
-            height: 80px;
+
+        /* Controls */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        .brush-val-badge {
+            background: var(--pink-neon);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
+            box-shadow: 0 0 10px rgba(255,0,127,0.5);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #2d1a45;
+            border-radius: 10px;
+            outline: none;
+            width: 180px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--pink-neon);
+            cursor: pointer;
+            box-shadow: 0 0 12px var(--pink-neon);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Canvas */
         .canvas-container {
             position: relative;
             display: inline-block;
-            margin-top: 10px;
-            max-width: 100%;
+            width: 100%;
+            text-align: center;
+            border: 2px solid rgba(168, 85, 247, 0.3);
+            border-radius: 16px;
             overflow: hidden;
-            border: 2px dashed #444;
-            border-radius: 4px;
             background: #000;
+            box-shadow: 0 0 25px rgba(0,0,0,0.8);
         }
+
         canvas {
             display: block;
+            margin: 0 auto;
             cursor: crosshair;
             max-width: 100%;
             height: auto;
         }
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 10px;
+
+        /* Inputs */
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-input);
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            color: #fff;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            margin-top: 6px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
         }
-        button {
-            background: #007bff;
+
+        textarea {
+            resize: vertical;
+            height: 90px;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--pink-neon);
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
+            background: rgba(45, 25, 70, 0.7);
+        }
+
+        /* Buttons */
+        .btn-glow {
+            background: linear-gradient(135deg, var(--pink-neon) 0%, var(--purple-neon) 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            padding: 16px 32px;
+            border-radius: 14px;
             cursor: pointer;
-            font-size: 16px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow:
+                0 0 20px rgba(255, 0, 127, 0.4),
+                0 0 40px rgba(168, 85, 247, 0.2);
+            position: relative;
+            overflow: hidden;
         }
-        button:hover {
-            background: #0056b3;
+
+        .btn-glow:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 0 30px rgba(255, 0, 127, 0.7),
+                0 0 60px rgba(168, 85, 247, 0.4);
         }
-        button.secondary {
-            background: #6c757d;
+
+        .btn-glow:active {
+            transform: translateY(1px);
         }
-        button.secondary:hover {
-            background: #5a6268;
-        }
-        #result-container {
-            margin-top: 20px;
-            text-align: center;
-        }
-        #result-img {
-            max-width: 100%;
-            border-radius: 4px;
-            margin-top: 10px;
-            border: 1px solid #444;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            font-style: italic;
-            color: #ffc107;
-            margin: 10px 0;
-        }
-        .debug-log {
-            background: #111;
-            color: #00ff00;
-            padding: 10px;
-            font-family: monospace;
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
             font-size: 13px;
-            border-radius: 4px;
-            max-height: 150px;
-            overflow-y: auto;
-            margin-top: 15px;
-            border: 1px solid #333;
+            transition: all 0.2s ease;
+            margin-left: auto;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 0, 127, 0.2);
+            border-color: var(--pink-neon);
+            color: #fff;
+        }
+
+        /* Loading */
+        .loading-container {
             display: none;
+            text-align: center;
+            padding: 30px;
+            background: rgba(15, 8, 25, 0.8);
+            border: 1px solid var(--pink-neon);
+            border-radius: 16px;
+            margin-top: 25px;
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.2);
+        }
+
+        .disco-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 0, 127, 0.2);
+            border-top: 4px solid var(--pink-neon);
+            border-right: 4px solid var(--purple-neon);
+            border-radius: 50%;
+            margin: 0 auto 15px auto;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--pink-glow);
+            text-shadow: 0 0 10px rgba(255,0,127,0.5);
+        }
+
+        /* Results Gallery Grid (2 Images) */
+        #result-container {
+            display: none;
+            margin-top: 35px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-title {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--pink-glow), var(--purple-neon));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .result-card {
+            background: rgba(20, 10, 35, 0.8);
+            border: 1px solid rgba(255, 0, 127, 0.35);
+            border-radius: 18px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--pink-neon);
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.4);
+        }
+
+        .card-badge {
+            display: inline-block;
+            background: rgba(9, 5, 16, 0.85);
+            border: 1px solid var(--pink-neon);
+            color: var(--pink-glow);
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 10px rgba(255,0,127,0.4);
+        }
+
+        .result-img {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 14px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .result-img:hover {
+            transform: scale(1.02);
+        }
+
+        .btn-download {
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid var(--purple-neon);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .btn-download:hover {
+            background: var(--purple-neon);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+        }
+
+        /* Terminal Debug Log */
+        .debug-log {
+            display: none;
+            background: #05020a;
+            color: #ec4899;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 12px;
+            max-height: 140px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid rgba(255,0,127,0.2);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Fibby - AI Inpainting & Modification Studio</h1>
+    <div class="disco-bg-light"></div>
 
+    <div class="container">
+        <header>
+            <div class="title-badge">🪩 Disco Night Edition</div>
+            <h1>FIBBY STUDIO</h1>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (2 Variations)</p>
+        </header>
+
+        <!-- Step 1: Upload -->
         <div class="section">
-            <label for="imageUpload">1. Upload Base Image</label>
-            <input type="file" id="imageUpload" accept="image/*">
+            <label class="section-title">
+                <span class="step-num">1</span> Upload Base Image
+            </label>
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon">✨ 📸</div>
+                <p style="font-weight: 600; font-size: 1.05rem;">Click or drop image here</p>
+                <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 4px;">PNG, JPG, WEBP supported</p>
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
         </div>
 
+        <!-- Step 2: Canvas Mask Editor -->
         <div class="section" id="editorSection" style="display:none;">
-            <label>2. Draw Mask (Paint over area to modify - Fooocus Red Overlay)</label>
+            <label class="section-title">
+                <span class="step-num">2</span> Paint Mask Area (Neon Red Brush)
+            </label>
             <div class="controls">
-                <label for="brushSize" style="margin:0;">Brush Size:</label>
-                <input type="range" id="brushSize" min="5" max="100" value="30" style="width: 200px; margin:0;">
-                <span id="brushSizeVal">30</span>
-                <button class="secondary" id="clearMaskBtn">Clear Mask</button>
+                <span style="font-size: 14px; font-weight: 600;">Brush Size:</span>
+                <input type="range" id="brushSize" min="5" max="100" value="35">
+                <span class="brush-val-badge" id="brushSizeVal">35px</span>
+                <button class="btn-secondary" id="clearMaskBtn">Clear Mask</button>
             </div>
             <div class="canvas-container" id="canvasContainer">
                 <canvas id="imageCanvas"></canvas>
             </div>
         </div>
 
+        <!-- Step 3: Prompt Controls -->
         <div class="section">
-            <label for="prompt">3. Modification Prompt (Modify Content)</label>
-            <textarea id="prompt" placeholder="Describe what to generate in the masked area..."></textarea>
+            <label class="section-title">
+                <span class="step-num">3</span> Modification Prompt
+            </label>
+            <textarea id="prompt" placeholder="Describe the fancy modification to generate in the masked area (e.g. 'a glowing neon dragon', 'fancy disco glasses', 'futuristic cyberpunk helmet')..."></textarea>
 
-            <label for="negativePrompt">Negative Prompt (Optional)</label>
-            <input type="text" id="negativePrompt" placeholder="low quality, blurry...">
+            <label style="font-size: 0.9rem; color: var(--gray-light); display: block; margin-top: 10px;">Negative Prompt (Optional)</label>
+            <input type="text" id="negativePrompt" placeholder="blurry, low quality, distorted, extra limbs...">
         </div>
 
-        <button id="generateBtn" style="width: 100%;">Generate Modification</button>
+        <!-- Generate Button -->
+        <button class="btn-glow" id="generateBtn">✨ Generate 2 Fancy Variations ✨</button>
 
-        <div class="loading" id="loadingIndicator">
-            <p>Fibby is automating Fooocus (Uploading base image, replaying exact mask strokes, generating modification)...</p>
+        <!-- Loading Indicator -->
+        <div class="loading-container" id="loadingIndicator">
+            <div class="disco-spinner"></div>
+            <p class="loading-text">🪩 Fibby is generating 2 AI Variations in Fooocus...</p>
+            <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 6px;">Automating Playwright, replaying exact mask strokes, rendering 2 SDXL variations</p>
         </div>
 
+        <!-- Terminal Log -->
         <div class="debug-log" id="debugLog"></div>
 
-        <div id="result-container" style="display:none;">
-            <h3>Final Result from Fibby:</h3>
-            <img id="result-img" alt="Generated Result">
+        <!-- Step 4: Results Display (2 Images Grid) -->
+        <div id="result-container">
+            <h2 class="result-title">🪩 Generated Variations</h2>
+            <div class="results-grid">
+                <div class="result-card">
+                    <span class="card-badge">Option 1 - Pink Glow</span>
+                    <img id="result-img-1" class="result-img" alt="Variation 1" onclick="window.open(this.src, '_blank')">
+                    <a id="download-1" class="btn-download" download="fibby_result_1.png" target="_blank">⬇️ Download Image 1</a>
+                </div>
+                <div class="result-card">
+                    <span class="card-badge">Option 2 - Neon Pulse</span>
+                    <img id="result-img-2" class="result-img" alt="Variation 2" onclick="window.open(this.src, '_blank')">
+                    <a id="download-2" class="btn-download" download="fibby_result_2.png" target="_blank">⬇️ Download Image 2</a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -173,12 +569,15 @@
         const generateBtn = document.getElementById('generateBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const resultContainer = document.getElementById('result-container');
-        const resultImg = document.getElementById('result-img');
+        const resultImg1 = document.getElementById('result-img-1');
+        const resultImg2 = document.getElementById('result-img-2');
+        const download1 = document.getElementById('download-1');
+        const download2 = document.getElementById('download-2');
         const debugLog = document.getElementById('debugLog');
 
         let baseImage = new Image();
         let isDrawing = false;
-        let brushSize = 30;
+        let brushSize = 35;
         let drawnPoints = [];
 
         function logMessage(msg) {
@@ -189,7 +588,7 @@
 
         brushSizeInput.addEventListener('input', (e) => {
             brushSize = e.target.value;
-            brushSizeVal.textContent = brushSize;
+            brushSizeVal.textContent = brushSize + 'px';
         });
 
         imageUpload.addEventListener('change', (e) => {
@@ -243,7 +642,7 @@
             const pos = getMousePos(e);
             ctx.lineWidth = brushSize;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(230, 40, 40, 0.6)';
+            ctx.strokeStyle = 'rgba(230, 40, 40, 0.65)';
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             drawnPoints.push({x: pos.x, y: pos.y, type: 'move'});
@@ -263,7 +662,7 @@
             }
             const prompt = document.getElementById('prompt').value;
             if (!prompt) {
-                alert('Please enter a prompt.');
+                alert('Please enter a modification prompt.');
                 return;
             }
 
@@ -280,7 +679,7 @@
             loadingIndicator.style.display = 'block';
             resultContainer.style.display = 'none';
             debugLog.innerHTML = '';
-            logMessage("Starting Fibby request: sending base image and exact mask points to server...");
+            logMessage("Starting Fibby request: sending base image and mask points to server...");
 
             try {
                 const response = await fetch('http://127.0.0.1:8000/api/inpaint', {
@@ -289,42 +688,31 @@
                 });
                 const data = await response.json();
                 if (response.ok && data.result) {
-                    let foundImage = null;
                     const res = data.result;
+                    let images = [];
 
-                    if (Array.isArray(res) && res.length > 0) {
-                        for (let item of res) {
-                            if (typeof item === 'string' && item.length > 0) {
-                                foundImage = item;
-                                break;
-                            }
-                        }
+                    if (Array.isArray(res)) {
+                        images = res.filter(item => typeof item === 'string' && item.length > 0);
                     }
 
-                    if (!foundImage) {
-                        function recursiveSearch(obj) {
-                            if (!obj || foundImage) return;
-                            if (typeof obj === 'string' && (obj.startsWith('http') || obj.startsWith('/file='))) {
-                                foundImage = obj.startsWith('/') ? 'http://127.0.0.1:7865' + obj : obj;
-                                return;
-                            }
-                            if (Array.isArray(obj)) {
-                                for (let item of obj) recursiveSearch(item);
-                            } else if (typeof obj === 'object') {
-                                for (let key in obj) recursiveSearch(obj[key]);
-                            }
-                        }
-                        recursiveSearch(res);
+                    if (images.length === 0) {
+                        alert('No images returned from server.');
+                        return;
                     }
 
-                    if (foundImage) {
-                        logMessage("Success! Received generated image URL from Fibby/Fooocus.");
-                        resultImg.src = foundImage;
-                        resultContainer.style.display = 'block';
-                    } else {
-                        logMessage("Error: Could not parse image URL from response.");
-                        alert('Generation completed, but could not parse image URL from response: ' + JSON.stringify(res));
-                    }
+                    logMessage(`Success! Received ${images.length} generated variation(s) from Fibby.`);
+
+                    // Display Image 1
+                    resultImg1.src = images[0];
+                    download1.href = images[0];
+
+                    // Display Image 2 (or fallback to Image 1 if only 1 was returned)
+                    const img2Url = images.length > 1 ? images[1] : images[0];
+                    resultImg2.src = img2Url;
+                    download2.href = img2Url;
+
+                    resultContainer.style.display = 'block';
+                    resultContainer.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     logMessage("Error from server: " + (data.error || 'Unknown error'));
                     alert('Error: ' + (data.error || 'Unknown error'));

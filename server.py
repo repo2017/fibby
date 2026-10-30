@@ -23,32 +23,76 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
-OUTPUT_SEARCH_DIRS = [
-    r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\outputs",
-    r"C:\Users\nstra\AppData\Local\Temp\fooocus"
-]
 
-def get_latest_generated_image():
-    valid_pngs = []
-    for s_dir in OUTPUT_SEARCH_DIRS:
-        if not os.path.exists(s_dir):
-            continue
-        pngs = glob.glob(os.path.join(s_dir, "**", "*.png"), recursive=True)
+# Permanent local storage for Fibby
+FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
+os.makedirs(FIBBY_OUTPUTS_DIR, exist_ok=True)
+app.mount("/outputs", StaticFiles(directory=FIBBY_OUTPUTS_DIR), name="outputs")
+
+def extract_and_store_generated_images(start_time=None, count=2):
+    """
+    Finds the 2 generated PNGs created during this run (after start_time),
+    copies them into Fibby's local 'outputs' folder, and returns static Fibby URLs.
+    """
+    found_paths = []
+    seen_filenames = set()
+    min_ctime = (start_time - 10) if start_time else 0
+
+    # 1. Search Temp/fooocus subdirectories
+    temp_dir = r"C:\Users\nstra\AppData\Local\Temp\fooocus"
+    if os.path.exists(temp_dir):
+        subdirs = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
+        subdirs.sort(key=os.path.getmtime, reverse=True)
+
+        for sd in subdirs:
+            if start_time and os.path.getmtime(sd) < min_ctime:
+                continue
+            pngs = glob.glob(os.path.join(sd, "*.png"))
+            if pngs:
+                pngs.sort(key=os.path.getctime, reverse=True)
+                p = pngs[0]
+                fname = os.path.basename(p)
+                if fname not in seen_filenames and os.path.getsize(p) > 50000:
+                    seen_filenames.add(fname)
+                    found_paths.append((os.path.getctime(p), p))
+
+    # 2. Search Fooocus outputs folder
+    out_dir = r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\outputs"
+    if os.path.exists(out_dir):
+        pngs = glob.glob(os.path.join(out_dir, "**", "*.png"), recursive=True)
         for p in pngs:
             try:
-                filename = os.path.basename(p)
                 ctime = os.path.getctime(p)
-                if (re.search(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', filename) or "fooocus" in p.lower()) and os.path.getsize(p) > 50000:
-                    valid_pngs.append((ctime, p))
+                fname = os.path.basename(p)
+                if ctime >= min_ctime and fname not in seen_filenames and os.path.getsize(p) > 50000:
+                    seen_filenames.add(fname)
+                    found_paths.append((ctime, p))
             except:
                 pass
 
-    if valid_pngs:
-        valid_pngs.sort(key=lambda x: x[0], reverse=True)
-        latest_path = valid_pngs[0][1]
-        print(f"[Playwright] Found latest Fooocus generated output file: {latest_path}")
-        return f"{FOOOCUS_URL}/file={latest_path.replace('\\', '/')}"
-    return None
+    # Sort chronologically (oldest first)
+    found_paths.sort(key=lambda x: x[0])
+
+    # Take the count newest files
+    if len(found_paths) > count:
+        found_paths = found_paths[-count:]
+
+    # Copy files to Fibby's static 'outputs' directory
+    stored_urls = []
+    for ctime, pth in found_paths:
+        dest_filename = f"{int(ctime)}_{os.path.basename(pth)}"
+        dest_path = os.path.join(FIBBY_OUTPUTS_DIR, dest_filename)
+        shutil.copy2(pth, dest_path)
+        url = f"http://127.0.0.1:8000/outputs/{dest_filename}"
+        stored_urls.append(url)
+        print(f"[Fibby Storage] Stored {pth} -> {dest_path}")
+
+    # Safety duplicate if only 1 image found
+    while len(stored_urls) < count and len(stored_urls) > 0:
+        stored_urls.append(stored_urls[0])
+
+    print(f"[Fibby Storage] Final stored URLs ({len(stored_urls)} returned): {stored_urls}")
+    return stored_urls
 
 @app.post("/api/inpaint")
 async def inpaint(
@@ -76,7 +120,6 @@ async def inpaint(
     try:
         print("[Playwright] Launching browser (lightning fast, slow_mo=0)...")
         async with async_playwright() as p:
-            # Removed slow_mo for instant execution speed
             browser = await p.chromium.launch(headless=False)
             page = await browser.new_page()
 
@@ -109,6 +152,33 @@ async def inpaint(
                     await asyncio.sleep(0.5)
             except Exception as ex:
                 print(f"[Playwright] Method selection warning: {ex}")
+
+            print("[Playwright] Enabling 'Advanced' mode to set Image Number = 2...")
+            try:
+                adv_chk = page.locator("label:has-text('Advanced') input[type='checkbox']").first
+                if await adv_chk.count() > 0 and not await adv_chk.is_checked():
+                    await adv_chk.check()
+                    print("[Playwright] Checked 'Advanced' checkbox!")
+
+                await page.wait_for_selector("div:has-text('Image Number')", timeout=10000)
+                await asyncio.sleep(0.5)
+
+                num_set = False
+                for inp in await page.locator("input[type='number']").all():
+                    p_text = await inp.evaluate("el => el.closest('.component, .form, div')?.innerText || ''")
+                    if "Image Number" in p_text:
+                        await inp.click()
+                        await inp.fill("2")
+                        await inp.press("Enter")
+                        await inp.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
+                        val = await inp.input_value()
+                        print(f"[Playwright] Successfully set Image Number input to: {val}")
+                        num_set = True
+                        break
+                if not num_set:
+                    print("[Playwright Warning]: Image Number input element was not found in DOM!")
+            except Exception as ex:
+                print(f"[Playwright] Advanced/Image Number setting error: {ex}")
 
             print("[Playwright] Uploading base image into Inpaint Canvas slot...")
             inpaint_tab = page.locator("#component-70")
@@ -144,27 +214,19 @@ async def inpaint(
                 if box:
                     cx = box["x"] + box["width"] / 2
                     cy = box["y"] + box["height"] / 2
-                    await page.mouse.move(cx - 50, cy - 50)
+                    print("[Playwright] Drawing 200px fallback mask in center...")
+                    await page.mouse.move(cx - 80, cy - 80)
                     await page.mouse.down()
-                    for dx in range(-50, 50, 10):
-                        await page.mouse.move(cx + dx, cy - 50)
-                    for dy in range(-50, 50, 10):
-                        await page.mouse.move(cx + 50, cy + dy)
+                    for r in range(10, 100, 15):
+                        for angle in range(0, 360, 20):
+                            import math
+                            mx = cx + r * math.cos(math.radians(angle))
+                            my = cy + r * math.sin(math.radians(angle))
+                            await page.mouse.move(mx, my)
                     await page.mouse.up()
 
             await asyncio.sleep(1)
-
-            print(f"[Playwright] Entering prompt into main box: '{prompt}'...")
-            main_textarea = page.locator("textarea").first
-            await main_textarea.click()
-            await main_textarea.fill(prompt)
-            await page.evaluate("""(el) => {
-                if (el) {
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            }""", await main_textarea.element_handle())
-            await asyncio.sleep(1)
+            start_time = time.time()
 
             print("[Playwright] Clicking Generate button...")
             await page.locator("#generate_button").click(force=True)
@@ -178,44 +240,20 @@ async def inpaint(
                 pass
 
             await page.wait_for_selector("#stop_button", state="hidden", timeout=600000)
-            print("[Playwright] Fooocus generation completed! Extracting generated output file...")
+            print("[Playwright] Fooocus generation completed! Storing generated output files...")
 
             await asyncio.sleep(3)
 
-            # Extract generated output file
-            img_src = get_latest_generated_image()
+            # Store the 2 generated images in Fibby's own local static folder and return Fibby URLs
+            stored_urls = extract_and_store_generated_images(start_time=start_time, count=2)
 
-            # Fallback to DOM gallery
-            if not img_src:
-                gallery_imgs = page.locator("#final_gallery img, #component-7 img, div[data-testid='gallery'] img")
-                count = await gallery_imgs.count()
-                if count > 0:
-                    for i in range(count - 1, -1, -1):
-                        src = await gallery_imgs.nth(i).get_attribute("src")
-                        if src and ("/file=" in src or "blob:" in src) and "data:image" not in src:
-                            img_src = src
-                            break
-
-            if not img_src:
-                all_imgs = await page.locator("img[src*='/file=']").all()
-                if len(all_imgs) > 0:
-                    img_src = await all_imgs[-1].get_attribute("src")
-
-            if not img_src:
-                raise Exception("No generated output image found.")
-
-            print(f"[Playwright] Final generated image source URL: {img_src}")
-
-            if img_src and img_src.startswith("/"):
-                img_src = FOOOCUS_URL + img_src
-
-            if img_src:
-                img_src = img_src.replace("\\", "/")
+            if not stored_urls or len(stored_urls) == 0:
+                raise Exception("No generated output images found or stored.")
 
             await asyncio.sleep(1)
             await browser.close()
 
-            return {"result": [img_src]}
+            return {"result": stored_urls}
 
     except Exception as e:
         print("[Playwright Error]:", traceback.format_exc())
