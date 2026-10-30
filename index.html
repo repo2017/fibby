@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fooocus Inpaint & Modification Studio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #121212;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="file"], select, textarea, input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        textarea {
+            resize: vertical;
+            height: 80px;
+        }
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            margin-top: 10px;
+            max-width: 100%;
+            overflow: hidden;
+            border: 2px dashed #444;
+            border-radius: 4px;
+            background: #000;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #5a6268;
+        }
+        #result-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #result-img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px solid #444;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            font-style: italic;
+            color: #ffc107;
+            margin: 10px 0;
+        }
+        .debug-log {
+            background: #111;
+            color: #00ff00;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 13px;
+            border-radius: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 15px;
+            border: 1px solid #333;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fooocus Inpaint & Modification Studio</h1>
+
+        <div class="section">
+            <label for="imageUpload">1. Upload Base Image</label>
+            <input type="file" id="imageUpload" accept="image/*">
+        </div>
+
+        <div class="section" id="editorSection" style="display:none;">
+            <label>2. Draw Mask (Paint over area to modify - Fooocus Red Overlay)</label>
+            <div class="controls">
+                <label for="brushSize" style="margin:0;">Brush Size:</label>
+                <input type="range" id="brushSize" min="5" max="100" value="30" style="width: 200px; margin:0;">
+                <span id="brushSizeVal">30</span>
+                <button class="secondary" id="clearMaskBtn">Clear Mask</button>
+            </div>
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="imageCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <label for="prompt">3. Modification Prompt (Modify Content)</label>
+            <textarea id="prompt" placeholder="Describe what to generate in the masked area..."></textarea>
+
+            <label for="negativePrompt">Negative Prompt (Optional)</label>
+            <input type="text" id="negativePrompt" placeholder="low quality, blurry...">
+        </div>
+
+        <button id="generateBtn" style="width: 100%;">Generate Modification</button>
+
+        <div class="loading" id="loadingIndicator">
+            <p>Automating Fooocus (Uploading base image, simulating exact mask drawing on Fooocus canvas, generating)...</p>
+        </div>
+
+        <div class="debug-log" id="debugLog"></div>
+
+        <div id="result-container" style="display:none;">
+            <h3>Final Result from Fooocus:</h3>
+            <img id="result-img" alt="Generated Result">
+        </div>
+    </div>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const editorSection = document.getElementById('editorSection');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const brushSizeInput = document.getElementById('brushSize');
+        const brushSizeVal = document.getElementById('brushSizeVal');
+        const clearMaskBtn = document.getElementById('clearMaskBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultContainer = document.getElementById('result-container');
+        const resultImg = document.getElementById('result-img');
+        const debugLog = document.getElementById('debugLog');
+
+        let baseImage = new Image();
+        let isDrawing = false;
+        let brushSize = 30;
+        let drawnPoints = [];
+
+        function logMessage(msg) {
+            debugLog.style.display = 'block';
+            debugLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = e.target.value;
+            brushSizeVal.textContent = brushSize;
+        });
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                baseImage.onload = function() {
+                    canvas.width = baseImage.width;
+                    canvas.height = baseImage.height;
+                    redrawCanvas();
+                    editorSection.style.display = 'block';
+                    drawnPoints = [];
+                }
+                baseImage.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(baseImage, 0, 0);
+        }
+
+        clearMaskBtn.addEventListener('click', () => {
+            redrawCanvas();
+            drawnPoints = [];
+        });
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (evt.clientX - rect.left) * scaleX,
+                y: (evt.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            drawnPoints.push({x: pos.x, y: pos.y, type: 'down'});
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(230, 40, 40, 0.6)';
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            drawnPoints.push({x: pos.x, y: pos.y, type: 'move'});
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDrawing) {
+                isDrawing = false;
+                drawnPoints.push({type: 'up'});
+            }
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            if (!imageUpload.files[0]) {
+                alert('Please upload an image first.');
+                return;
+            }
+            const prompt = document.getElementById('prompt').value;
+            if (!prompt) {
+                alert('Please enter a prompt.');
+                return;
+            }
+
+            const imageBlob = imageUpload.files[0];
+
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'base.png');
+            formData.append('prompt', prompt);
+            formData.append('negative_prompt', document.getElementById('negativePrompt').value);
+            formData.append('mask_points', JSON.stringify(drawnPoints));
+            formData.append('canvas_width', canvas.width);
+            formData.append('canvas_height', canvas.height);
+
+            loadingIndicator.style.display = 'block';
+            resultContainer.style.display = 'none';
+            debugLog.innerHTML = '';
+            logMessage("Starting request: sending base image and exact drawn mask coordinates to server...");
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/inpaint', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok && data.result) {
+                    let foundImage = null;
+                    const res = data.result;
+
+                    if (Array.isArray(res) && res.length > 0) {
+                        for (let item of res) {
+                            if (typeof item === 'string' && item.length > 0) {
+                                foundImage = item;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!foundImage) {
+                        function recursiveSearch(obj) {
+                            if (!obj || foundImage) return;
+                            if (typeof obj === 'string' && (obj.startsWith('http') || obj.startsWith('/file='))) {
+                                foundImage = obj.startsWith('/') ? 'http://127.0.0.1:7865' + obj : obj;
+                                return;
+                            }
+                            if (Array.isArray(obj)) {
+                                for (let item of obj) recursiveSearch(item);
+                            } else if (typeof obj === 'object') {
+                                for (let key in obj) recursiveSearch(obj[key]);
+                            }
+                        }
+                        recursiveSearch(res);
+                    }
+
+                    if (foundImage) {
+                        logMessage("Success! Received generated image URL from Fooocus.");
+                        resultImg.src = foundImage;
+                        resultContainer.style.display = 'block';
+                    } else {
+                        logMessage("Error: Could not parse image URL from response.");
+                        alert('Generation completed, but could not parse image URL from response: ' + JSON.stringify(res));
+                    }
+                } else {
+                    logMessage("Error from server: " + (data.error || 'Unknown error'));
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                logMessage("Request failed: " + err.message);
+                alert('Request failed: ' + err.message);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

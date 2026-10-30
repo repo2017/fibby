@@ -1,0 +1,28 @@
+import asyncio
+from playwright.async_api import async_playwright
+
+async def inspect():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(headless=True)
+        page = await b.new_page()
+        await page.goto('http://127.0.0.1:7865')
+        await page.wait_for_timeout(4000)
+
+        await page.locator("text=Input Image").first.click()
+        await page.wait_for_timeout(1000)
+
+        await page.locator("button:has-text('Inpaint or Outpaint')").first.click()
+        await page.wait_for_timeout(1000)
+
+        textareas = page.locator("textarea")
+        count = await textareas.count()
+        print("Total textareas:", count)
+        for i in range(count):
+            ta = textareas.nth(i)
+            placeholder = await ta.get_attribute("placeholder")
+            parent_text = await ta.evaluate("el => el.closest('.gr-block, .gr-box, div').innerText.substring(0, 100)")
+            print(f"TextArea {i}: placeholder={placeholder} | context={parent_text.replace(chr(10), ' ')}")
+
+        await b.close()
+
+asyncio.run(inspect())
