@@ -561,7 +561,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.3 - Build 2026.11.02-01:13)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.4 - Async Job Queue)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -920,7 +920,7 @@
             loadingIndicator.style.display = 'block';
             resultContainer.style.display = 'none';
             debugLog.innerHTML = '';
-            logMessage(`Starting Fibby request: generating ${imageCount} variations (cost: ${cost} tokens)...`);
+            logMessage(`Starting Fibby job: generating ${imageCount} variations (cost: ${cost} tokens)...`);
 
             try {
                 const response = await fetch('/api/inpaint', {
@@ -928,48 +928,73 @@
                     body: formData
                 });
                 const data = await response.json();
-                if (response.ok && data.result) {
-                    if (data.tokens_remaining !== undefined) {
-                        userTokens = data.tokens_remaining;
-                        tokenBadge.textContent = `🪙 ${userTokens} Tokens`;
-                    }
-
-                    const res = data.result;
-                    let images = [];
-
-                    if (Array.isArray(res)) {
-                        images = res.filter(item => typeof item === 'string' && item.length > 0);
-                    }
-
-                    if (images.length === 0) {
-                        alert('No images returned from server.');
-                        return;
-                    }
-
-                    logMessage(`Success! Received ${images.length} generated variation(s) from Fibby.`);
-
-                    resultsGrid.innerHTML = '';
-                    images.forEach((imgUrl, index) => {
-                        const card = document.createElement('div');
-                        card.className = 'result-card';
-                        card.innerHTML = `
-                            <span class="card-badge">Option ${index + 1}</span>
-                            <img src="${imgUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
-                            <a href="${imgUrl}" class="btn-download" download="fibby_result_${index + 1}.png" target="_blank">⬇️ Download Image ${index + 1}</a>
-                        `;
-                        resultsGrid.appendChild(card);
-                    });
-
-                    resultContainer.style.display = 'block';
-                    resultContainer.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    logMessage("Error from server: " + (data.error || 'Unknown error'));
+                if (!response.ok) {
                     alert('Error: ' + (data.error || 'Unknown error'));
+                    loadingIndicator.style.display = 'none';
+                    return;
                 }
+
+                if (data.tokens_remaining !== undefined) {
+                    userTokens = data.tokens_remaining;
+                    tokenBadge.textContent = `🪙 ${userTokens} Tokens`;
+                }
+
+                const jobId = data.job_id;
+                if (!jobId) {
+                    alert('Error: No job ID returned.');
+                    loadingIndicator.style.display = 'none';
+                    return;
+                }
+
+                logMessage(`Job dispatched successfully! Job ID: ${jobId}. Polling for completion...`);
+
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(`/api/job-status?job_id=${jobId}`);
+                        const statusData = await statusRes.json();
+
+                        if (statusData.status === 'completed') {
+                            clearInterval(pollInterval);
+                            loadingIndicator.style.display = 'none';
+
+                            const images = (statusData.result || []).filter(item => typeof item === 'string' && item.length > 0);
+                            if (images.length === 0) {
+                                alert('Generation completed, but no images found.');
+                                return;
+                            }
+
+                            logMessage(`Success! Received ${images.length} generated variation(s).`);
+
+                            resultsGrid.innerHTML = '';
+                            images.forEach((imgUrl, index) => {
+                                const card = document.createElement('div');
+                                card.className = 'result-card';
+                                card.innerHTML = `
+                                    <span class="card-badge">Option ${index + 1}</span>
+                                    <img src="${imgUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
+                                    <a href="${imgUrl}" class="btn-download" download="fibby_result_${index + 1}.png" target="_blank">⬇️ Download Image ${index + 1}</a>
+                                `;
+                                resultsGrid.appendChild(card);
+                            });
+
+                            resultContainer.style.display = 'block';
+                            resultContainer.scrollIntoView({ behavior: 'smooth' });
+                        } else if (statusData.status === 'error') {
+                            clearInterval(pollInterval);
+                            loadingIndicator.style.display = 'none';
+                            alert('Generation error: ' + (statusData.error || 'Unknown error'));
+                            logMessage('Job failed: ' + statusData.error);
+                        } else {
+                            logMessage('AI generation still in progress on GPU...');
+                        }
+                    } catch (pollErr) {
+                        console.error('Polling error:', pollErr);
+                    }
+                }, 4000);
+
             } catch (err) {
                 logMessage("Request failed: " + err.message);
                 alert('Request failed: ' + err.message);
-            } finally {
                 loadingIndicator.style.display = 'none';
             }
         });
