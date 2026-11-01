@@ -685,7 +685,7 @@
                 return;
             }
             try {
-                const res = await fetch(`http://127.0.0.1:8000/api/me?token=${authToken}`);
+                const res = await fetch(`/api/me?token=${authToken}`);
                 const data = await res.json();
                 if (res.ok) {
                     userTokens = data.tokens;
@@ -712,7 +712,7 @@
                 return;
             }
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/login', {
+                const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({email, password})
@@ -738,7 +738,7 @@
                 return;
             }
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/register', {
+                const res = await fetch('/api/register', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({email, password})
@@ -923,7 +923,7 @@
             logMessage(`Starting Fibby request: generating ${imageCount} variations (cost: ${cost} tokens)...`);
 
             try {
-                const response = await fetch('http://127.0.0.1:8000/api/inpaint', {
+                const response = await fetch('/api/inpaint', {
                     method: 'POST',
                     body: formData
                 });
