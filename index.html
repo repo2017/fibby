@@ -10,8 +10,8 @@
     <style>
         :root {
             --bg-dark: #090510;
-            --bg-card: rgba(22, 12, 36, 0.75);
-            --bg-input: rgba(35, 20, 56, 0.6);
+            --bg-card: rgba(22, 12, 36, 0.82);
+            --bg-input: rgba(35, 20, 56, 0.7);
             --pink-neon: #ff007f;
             --pink-glow: #ec4899;
             --purple-neon: #a855f7;
@@ -26,6 +26,9 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
         }
 
         body {
@@ -33,7 +36,7 @@
             background-color: var(--bg-dark);
             color: var(--text-white);
             min-height: 100vh;
-            padding: 30px 15px;
+            padding: 40px 20px;
             background-image:
                 radial-gradient(circle at 15% 15%, rgba(255, 0, 127, 0.18) 0%, transparent 40%),
                 radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.18) 0%, transparent 40%),
@@ -42,17 +45,16 @@
             overflow-x: hidden;
         }
 
-        /* Ambient Animated Disco Lights */
         .disco-bg-light {
             position: fixed;
             top: -100px;
             left: 50%;
             transform: translateX(-50%);
-            width: 600px;
-            height: 300px;
+            width: 700px;
+            height: 350px;
             background: linear-gradient(90deg, var(--pink-neon), var(--purple-neon));
-            filter: blur(140px);
-            opacity: 0.25;
+            filter: blur(150px);
+            opacity: 0.28;
             z-index: -1;
             pointer-events: none;
             animation: pulse-light 6s ease-in-out infinite alternate;
@@ -60,37 +62,37 @@
 
         @keyframes pulse-light {
             0% { opacity: 0.2; transform: translateX(-50%) scale(0.9); }
-            100% { opacity: 0.35; transform: translateX(-50%) scale(1.15); }
+            100% { opacity: 0.38; transform: translateX(-50%) scale(1.15); }
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--border-neon);
-            border-radius: 24px;
-            padding: 35px;
+            border-radius: 28px;
+            padding: 45px;
             box-shadow:
-                0 0 35px rgba(255, 0, 127, 0.15),
-                0 0 70px rgba(168, 85, 247, 0.1),
+                0 0 45px rgba(255, 0, 127, 0.18),
+                0 0 90px rgba(168, 85, 247, 0.12),
                 inset 0 1px 1px rgba(255, 255, 255, 0.1);
         }
 
         header {
             text-align: center;
-            margin-bottom: 35px;
+            margin-bottom: 30px;
             position: relative;
         }
 
         .title-badge {
             display: inline-block;
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 12px;
+            font-size: 13px;
             letter-spacing: 3px;
             text-transform: uppercase;
-            padding: 6px 16px;
+            padding: 6px 18px;
             background: linear-gradient(90deg, rgba(255,0,127,0.2), rgba(168,85,247,0.2));
             border: 1px solid rgba(255, 0, 127, 0.5);
             border-radius: 50px;
@@ -100,73 +102,116 @@
         }
 
         h1 {
-            font-size: 2.8rem;
+            font-size: 3rem;
             font-weight: 900;
             background: linear-gradient(135deg, #ffffff 0%, #f472b6 50%, #c084fc 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
+            text-shadow: 0 0 35px rgba(236, 72, 153, 0.35);
             letter-spacing: -1px;
         }
 
         .subtitle {
             color: var(--gray-light);
-            font-size: 1rem;
-            margin-top: 6px;
+            font-size: 1.05rem;
+            margin-top: 8px;
+        }
+
+        /* Auth Bar */
+        .auth-bar {
+            background: rgba(15, 8, 25, 0.8);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            padding: 15px 25px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .auth-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .auth-form input {
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #fff;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .token-badge {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 14px;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
         }
 
         .section {
-            margin-bottom: 28px;
-            background: rgba(15, 8, 25, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 22px;
-            border-radius: 16px;
+            margin-bottom: 30px;
+            background: rgba(15, 8, 25, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 25px;
+            border-radius: 18px;
             transition: border-color 0.3s ease;
         }
 
         .section:hover {
-            border-color: rgba(168, 85, 247, 0.3);
+            border-color: rgba(168, 85, 247, 0.35);
         }
 
         label.section-title {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 1.1rem;
+            gap: 12px;
+            font-size: 1.15rem;
             font-weight: 700;
             color: #fff;
-            margin-bottom: 14px;
+            margin-bottom: 15px;
         }
 
         label.section-title span.step-num {
             background: linear-gradient(135deg, var(--pink-neon), var(--purple-neon));
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 800;
-            box-shadow: 0 0 12px rgba(255,0,127,0.5);
+            box-shadow: 0 0 14px rgba(255,0,127,0.5);
         }
 
         /* Upload Area */
         .upload-box {
             position: relative;
-            border: 2px dashed rgba(255, 0, 127, 0.4);
-            border-radius: 16px;
-            padding: 30px;
+            border: 2px dashed rgba(255, 0, 127, 0.45);
+            border-radius: 18px;
+            padding: 35px;
             text-align: center;
-            background: rgba(255, 0, 127, 0.02);
+            background: rgba(255, 0, 127, 0.03);
             cursor: pointer;
             transition: all 0.3s ease;
         }
 
         .upload-box:hover {
             border-color: var(--pink-neon);
-            background: rgba(255, 0, 127, 0.06);
-            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+            background: rgba(255, 0, 127, 0.07);
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.25);
         }
 
         .upload-box input[type="file"] {
@@ -180,72 +225,81 @@
         }
 
         .upload-icon {
-            font-size: 38px;
-            margin-bottom: 10px;
+            font-size: 42px;
+            margin-bottom: 12px;
             background: linear-gradient(135deg, var(--pink-neon), var(--purple-neon));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* Controls */
+        /* Controls (Below Canvas) */
         .controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 18px;
             align-items: center;
-            margin-bottom: 15px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 12px 18px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 18px;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 14px 20px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .brush-val-badge {
             background: var(--pink-neon);
             color: #fff;
-            padding: 2px 10px;
+            padding: 4px 14px;
             border-radius: 20px;
             font-weight: 700;
-            font-size: 13px;
-            box-shadow: 0 0 10px rgba(255,0,127,0.5);
+            font-size: 14px;
+            box-shadow: 0 0 12px rgba(255,0,127,0.6);
         }
 
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
-            height: 6px;
+            height: 8px;
             background: #2d1a45;
             border-radius: 10px;
             outline: none;
-            width: 180px;
+            width: 200px;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: var(--pink-neon);
             cursor: pointer;
-            box-shadow: 0 0 12px var(--pink-neon);
+            box-shadow: 0 0 14px var(--pink-neon);
             transition: transform 0.2s;
         }
 
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+            transform: scale(1.25);
+        }
+
+        .time-estimate {
+            width: 100%;
+            font-size: 0.9rem;
+            color: var(--pink-glow);
+            font-weight: 600;
+            margin-top: 6px;
+            text-shadow: 0 0 10px rgba(255,0,127,0.3);
         }
 
         /* Canvas */
         .canvas-container {
             position: relative;
-            display: inline-block;
+            display: block;
             width: 100%;
             text-align: center;
-            border: 2px solid rgba(168, 85, 247, 0.3);
-            border-radius: 16px;
+            border: 2px solid rgba(168, 85, 247, 0.4);
+            border-radius: 18px;
             overflow: hidden;
             background: #000;
-            box-shadow: 0 0 25px rgba(0,0,0,0.8);
+            box-shadow: 0 0 30px rgba(0,0,0,0.85);
         }
 
         canvas {
@@ -254,33 +308,35 @@
             cursor: crosshair;
             max-width: 100%;
             height: auto;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* Inputs */
-        textarea, input[type="text"] {
-            width: 100%;
-            padding: 14px 18px;
-            background: var(--bg-input);
-            border: 1px solid rgba(168, 85, 247, 0.25);
-            color: #fff;
-            border-radius: 12px;
-            font-family: inherit;
-            font-size: 15px;
-            outline: none;
-            margin-top: 6px;
-            margin-bottom: 16px;
-            transition: all 0.3s ease;
-        }
-
         textarea {
+            width: 100%;
+            padding: 15px 20px;
+            background: var(--bg-input);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: #fff;
+            border-radius: 14px;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+            margin-top: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            user-select: text;
+            -webkit-user-select: text;
             resize: vertical;
-            height: 90px;
+            height: 110px;
         }
 
-        textarea:focus, input[type="text"]:focus {
+        textarea:focus {
             border-color: var(--pink-neon);
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
-            background: rgba(45, 25, 70, 0.7);
+            box-shadow: 0 0 18px rgba(255, 0, 127, 0.35);
+            background: rgba(45, 25, 70, 0.8);
         }
 
         /* Buttons */
@@ -288,18 +344,18 @@
             background: linear-gradient(135deg, var(--pink-neon) 0%, var(--purple-neon) 100%);
             color: white;
             border: none;
-            padding: 16px 32px;
-            border-radius: 14px;
+            padding: 18px 36px;
+            border-radius: 16px;
             cursor: pointer;
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             font-weight: 700;
             letter-spacing: 0.5px;
             width: 100%;
             transition: all 0.3s ease;
             box-shadow:
-                0 0 20px rgba(255, 0, 127, 0.4),
-                0 0 40px rgba(168, 85, 247, 0.2);
+                0 0 25px rgba(255, 0, 127, 0.45),
+                0 0 50px rgba(168, 85, 247, 0.25);
             position: relative;
             overflow: hidden;
         }
@@ -307,8 +363,8 @@
         .btn-glow:hover {
             transform: translateY(-2px);
             box-shadow:
-                0 0 30px rgba(255, 0, 127, 0.7),
-                0 0 60px rgba(168, 85, 247, 0.4);
+                0 0 35px rgba(255, 0, 127, 0.75),
+                0 0 70px rgba(168, 85, 247, 0.45);
         }
 
         .btn-glow:active {
@@ -318,42 +374,59 @@
         .btn-secondary {
             background: rgba(255, 255, 255, 0.08);
             color: #e2e8f0;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 8px 16px;
-            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 10px 18px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 14px;
             transition: all 0.2s ease;
             margin-left: auto;
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 0, 127, 0.2);
+            background: rgba(255, 0, 127, 0.25);
             border-color: var(--pink-neon);
             color: #fff;
+        }
+
+        .btn-auth {
+            background: linear-gradient(135deg, var(--pink-neon), var(--purple-neon));
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px rgba(255,0,127,0.4);
+        }
+
+        .btn-auth:hover {
+            opacity: 0.9;
         }
 
         /* Loading */
         .loading-container {
             display: none;
             text-align: center;
-            padding: 30px;
-            background: rgba(15, 8, 25, 0.8);
+            padding: 35px;
+            background: rgba(15, 8, 25, 0.85);
             border: 1px solid var(--pink-neon);
-            border-radius: 16px;
-            margin-top: 25px;
-            box-shadow: 0 0 30px rgba(255, 0, 127, 0.2);
+            border-radius: 18px;
+            margin-top: 30px;
+            box-shadow: 0 0 35px rgba(255, 0, 127, 0.25);
         }
 
         .disco-spinner {
-            width: 50px;
-            height: 50px;
+            width: 55px;
+            height: 55px;
             border: 4px solid rgba(255, 0, 127, 0.2);
             border-top: 4px solid var(--pink-neon);
             border-right: 4px solid var(--purple-neon);
             border-radius: 50%;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 18px auto;
             animation: spin 0.9s linear infinite;
         }
 
@@ -363,16 +436,16 @@
         }
 
         .loading-text {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--pink-glow);
-            text-shadow: 0 0 10px rgba(255,0,127,0.5);
+            text-shadow: 0 0 12px rgba(255,0,127,0.6);
         }
 
-        /* Results Gallery Grid (2 Images) */
+        /* Results Gallery Grid */
         #result-container {
             display: none;
-            margin-top: 35px;
+            margin-top: 40px;
             animation: fadeIn 0.6s ease-out;
         }
 
@@ -383,9 +456,9 @@
 
         .result-title {
             text-align: center;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             font-weight: 800;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             background: linear-gradient(90deg, var(--pink-glow), var(--purple-neon));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -393,17 +466,17 @@
 
         .results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 25px;
         }
 
         .result-card {
-            background: rgba(20, 10, 35, 0.8);
-            border: 1px solid rgba(255, 0, 127, 0.35);
-            border-radius: 18px;
-            padding: 18px;
+            background: rgba(20, 10, 35, 0.85);
+            border: 1px solid rgba(255, 0, 127, 0.4);
+            border-radius: 20px;
+            padding: 20px;
             text-align: center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            box-shadow: 0 0 25px rgba(0,0,0,0.6);
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
@@ -412,29 +485,29 @@
         .result-card:hover {
             transform: translateY(-5px);
             border-color: var(--pink-neon);
-            box-shadow: 0 0 30px rgba(255, 0, 127, 0.4);
+            box-shadow: 0 0 35px rgba(255, 0, 127, 0.45);
         }
 
         .card-badge {
             display: inline-block;
-            background: rgba(9, 5, 16, 0.85);
+            background: rgba(9, 5, 16, 0.9);
             border: 1px solid var(--pink-neon);
             color: var(--pink-glow);
-            padding: 4px 14px;
+            padding: 5px 16px;
             border-radius: 30px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             backdrop-filter: blur(5px);
-            box-shadow: 0 0 10px rgba(255,0,127,0.4);
+            box-shadow: 0 0 12px rgba(255,0,127,0.4);
         }
 
         .result-img {
             width: 100%;
             height: auto;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            margin-bottom: 16px;
             cursor: pointer;
             transition: transform 0.3s ease;
         }
@@ -444,11 +517,11 @@
         }
 
         .btn-download {
-            background: rgba(168, 85, 247, 0.15);
+            background: rgba(168, 85, 247, 0.18);
             border: 1px solid var(--purple-neon);
             color: #fff;
-            padding: 10px 20px;
-            border-radius: 10px;
+            padding: 12px 22px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
             text-decoration: none;
@@ -458,7 +531,11 @@
 
         .btn-download:hover {
             background: var(--purple-neon);
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+            box-shadow: 0 0 18px rgba(168, 85, 247, 0.6);
+        }
+
+        .app-content {
+            display: none;
         }
 
         /* Terminal Debug Log */
@@ -466,14 +543,14 @@
             display: none;
             background: #05020a;
             color: #ec4899;
-            padding: 15px;
+            padding: 18px;
             font-family: monospace;
-            font-size: 12px;
-            border-radius: 12px;
-            max-height: 140px;
+            font-size: 13px;
+            border-radius: 14px;
+            max-height: 160px;
             overflow-y: auto;
-            margin-top: 20px;
-            border: 1px solid rgba(255,0,127,0.2);
+            margin-top: 25px;
+            border: 1px solid rgba(255,0,127,0.25);
         }
     </style>
 </head>
@@ -484,101 +561,209 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (2 Variations)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (100 Free Signup Tokens)</p>
         </header>
 
-        <!-- Step 1: Upload -->
-        <div class="section">
-            <label class="section-title">
-                <span class="step-num">1</span> Upload Base Image
-            </label>
-            <div class="upload-box" id="uploadBox">
-                <div class="upload-icon">✨ 📸</div>
-                <p style="font-weight: 600; font-size: 1.05rem;">Click or drop image here</p>
-                <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 4px;">PNG, JPG, WEBP supported</p>
-                <input type="file" id="imageUpload" accept="image/*">
+        <!-- Auth Bar -->
+        <div class="auth-bar" id="authBar">
+            <div id="authLoggedOut" class="auth-form">
+                <input type="email" id="authEmail" placeholder="Email address...">
+                <input type="password" id="authPassword" placeholder="Password...">
+                <button class="btn-auth" id="loginBtn">Login</button>
+                <button class="btn-auth" id="registerBtn" style="background: linear-gradient(135deg, var(--purple-neon), #7c3aed);">Register (+100 Tokens)</button>
             </div>
-        </div>
-
-        <!-- Step 2: Canvas Mask Editor -->
-        <div class="section" id="editorSection" style="display:none;">
-            <label class="section-title">
-                <span class="step-num">2</span> Paint Mask Area (Neon Red Brush)
-            </label>
-            <div class="controls">
-                <span style="font-size: 14px; font-weight: 600;">Brush Size:</span>
-                <input type="range" id="brushSize" min="5" max="100" value="35">
-                <span class="brush-val-badge" id="brushSizeVal">35px</span>
-                <button class="btn-secondary" id="clearMaskBtn">Clear Mask</button>
-            </div>
-            <div class="canvas-container" id="canvasContainer">
-                <canvas id="imageCanvas"></canvas>
-            </div>
-        </div>
-
-        <!-- Step 3: Prompt Controls -->
-        <div class="section">
-            <label class="section-title">
-                <span class="step-num">3</span> Modification Prompt
-            </label>
-            <textarea id="prompt" placeholder="Describe the fancy modification to generate in the masked area (e.g. 'a glowing neon dragon', 'fancy disco glasses', 'futuristic cyberpunk helmet')..."></textarea>
-
-            <label style="font-size: 0.9rem; color: var(--gray-light); display: block; margin-top: 10px;">Negative Prompt (Optional)</label>
-            <input type="text" id="negativePrompt" placeholder="blurry, low quality, distorted, extra limbs...">
-        </div>
-
-        <!-- Generate Button -->
-        <button class="btn-glow" id="generateBtn">✨ Generate 2 Fancy Variations ✨</button>
-
-        <!-- Loading Indicator -->
-        <div class="loading-container" id="loadingIndicator">
-            <div class="disco-spinner"></div>
-            <p class="loading-text">🪩 Fibby is generating 2 AI Variations in Fooocus...</p>
-            <p style="font-size: 0.85rem; color: var(--gray-light); margin-top: 6px;">Automating Playwright, replaying exact mask strokes, rendering 2 SDXL variations</p>
-        </div>
-
-        <!-- Terminal Log -->
-        <div class="debug-log" id="debugLog"></div>
-
-        <!-- Step 4: Results Display (2 Images Grid) -->
-        <div id="result-container">
-            <h2 class="result-title">🪩 Generated Variations</h2>
-            <div class="results-grid">
-                <div class="result-card">
-                    <span class="card-badge">Option 1 - Pink Glow</span>
-                    <img id="result-img-1" class="result-img" alt="Variation 1" onclick="window.open(this.src, '_blank')">
-                    <a id="download-1" class="btn-download" download="fibby_result_1.png" target="_blank">⬇️ Download Image 1</a>
+            <div id="authLoggedIn" style="display: none; width: 100%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span id="userEmailDisplay" style="font-weight: 700; color: #f472b6;"></span>
                 </div>
-                <div class="result-card">
-                    <span class="card-badge">Option 2 - Neon Pulse</span>
-                    <img id="result-img-2" class="result-img" alt="Variation 2" onclick="window.open(this.src, '_blank')">
-                    <a id="download-2" class="btn-download" download="fibby_result_2.png" target="_blank">⬇️ Download Image 2</a>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div class="token-badge" id="tokenBadge">🪙 100 Tokens</div>
+                    <button class="btn-secondary" id="logoutBtn" style="margin: 0;">Logout</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="appContent" class="app-content">
+            <!-- Step 1: Upload -->
+            <div class="section">
+                <label class="section-title">
+                    <span class="step-num">1</span> Upload Base Image
+                </label>
+                <div class="upload-box" id="uploadBox">
+                    <div class="upload-icon">✨ 📸</div>
+                    <p style="font-weight: 600; font-size: 1.1rem;">Click or drop image here</p>
+                    <p style="font-size: 0.9rem; color: var(--gray-light); margin-top: 6px;">PNG, JPG, WEBP supported</p>
+                    <input type="file" id="imageUpload" accept="image/*">
+                </div>
+            </div>
+
+            <!-- Step 2: Canvas Mask Editor & Image Count Slider BELOW the Image -->
+            <div class="section" id="editorSection" style="display:none;">
+                <label class="section-title">
+                    <span class="step-num">2</span> Paint Mask Area (Neon Red Brush)
+                </label>
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="imageCanvas"></canvas>
+                </div>
+                <div class="controls">
+                    <span style="font-size: 15px; font-weight: 600;">Number of Images (2-6):</span>
+                    <input type="range" id="imageCount" min="2" max="6" value="2">
+                    <span class="brush-val-badge" id="imageCountVal">2 Images</span>
+                    <button class="btn-secondary" id="clearMaskBtn">Clear Mask</button>
+                    <div class="time-estimate" id="timeEstimate">⏱️ Estimated wait time: ~4 mins (~2 mins per picture) | Cost: 6 tokens (3 / picture)</div>
+                </div>
+            </div>
+
+            <!-- Step 3: Prompt Controls -->
+            <div class="section">
+                <label class="section-title">
+                    <span class="step-num">3</span> Modification Prompt
+                </label>
+                <textarea id="prompt" placeholder="Describe the fancy modification to generate in the masked area (e.g. 'a glowing neon dragon', 'fancy disco glasses', 'futuristic cyberpunk helmet')..."></textarea>
+            </div>
+
+            <!-- Generate Button -->
+            <button class="btn-glow" id="generateBtn">✨ Generate 2 Fancy Variations (6 Tokens) ✨</button>
+
+            <!-- Loading Indicator -->
+            <div class="loading-container" id="loadingIndicator">
+                <div class="disco-spinner"></div>
+                <p class="loading-text" id="loadingText">🪩 Fibby is generating 2 AI Variations (~4 mins estimated, ~2 mins per picture)...</p>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin-top: 8px;">Automating Playwright, replaying exact mask strokes, rendering SDXL variations</p>
+            </div>
+
+            <!-- Terminal Log -->
+            <div class="debug-log" id="debugLog"></div>
+
+            <!-- Step 4: Results Display (Dynamic Grid) -->
+            <div id="result-container">
+                <h2 class="result-title">🪩 Generated Variations</h2>
+                <div class="results-grid" id="resultsGrid"></div>
             </div>
         </div>
     </div>
 
     <script>
+        const authEmail = document.getElementById('authEmail');
+        const authPassword = document.getElementById('authPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const authLoggedOut = document.getElementById('authLoggedOut');
+        const authLoggedIn = document.getElementById('authLoggedIn');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const tokenBadge = document.getElementById('tokenBadge');
+        const appContent = document.getElementById('appContent');
+
         const imageUpload = document.getElementById('imageUpload');
         const editorSection = document.getElementById('editorSection');
         const canvas = document.getElementById('imageCanvas');
         const ctx = canvas.getContext('2d');
-        const brushSizeInput = document.getElementById('brushSize');
-        const brushSizeVal = document.getElementById('brushSizeVal');
+        const imageCountInput = document.getElementById('imageCount');
+        const imageCountVal = document.getElementById('imageCountVal');
+        const timeEstimate = document.getElementById('timeEstimate');
         const clearMaskBtn = document.getElementById('clearMaskBtn');
         const generateBtn = document.getElementById('generateBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
+        const loadingText = document.getElementById('loadingText');
         const resultContainer = document.getElementById('result-container');
-        const resultImg1 = document.getElementById('result-img-1');
-        const resultImg2 = document.getElementById('result-img-2');
-        const download1 = document.getElementById('download-1');
-        const download2 = document.getElementById('download-2');
+        const resultsGrid = document.getElementById('resultsGrid');
         const debugLog = document.getElementById('debugLog');
 
+        let authToken = localStorage.getItem('fibby_token') || '';
+        let userTokens = 100;
         let baseImage = new Image();
         let isDrawing = false;
         let brushSize = 35;
         let drawnPoints = [];
+
+        async function checkAuth() {
+            if (!authToken) {
+                authLoggedOut.style.display = 'flex';
+                authLoggedIn.style.display = 'none';
+                appContent.style.display = 'none';
+                return;
+            }
+            try {
+                const res = await fetch(`http://127.0.0.1:8000/api/me?token=${authToken}`);
+                const data = await res.json();
+                if (res.ok) {
+                    userTokens = data.tokens;
+                    userEmailDisplay.textContent = `👤 ${data.email}`;
+                    tokenBadge.textContent = `🪙 ${userTokens} Tokens`;
+                    authLoggedOut.style.display = 'none';
+                    authLoggedIn.style.display = 'flex';
+                    appContent.style.display = 'block';
+                } else {
+                    localStorage.removeItem('fibby_token');
+                    authToken = '';
+                    checkAuth();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loginBtn.addEventListener('click', async () => {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (!email || !password) {
+                alert('Please enter email and password.');
+                return;
+            }
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    authToken = data.token;
+                    localStorage.setItem('fibby_token', authToken);
+                    checkAuth();
+                } else {
+                    alert('Login failed: ' + data.error);
+                }
+            } catch (err) {
+                alert('Login error: ' + err.message);
+            }
+        });
+
+        registerBtn.addEventListener('click', async () => {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (!email || !password) {
+                alert('Please enter email and password.');
+                return;
+            }
+            try {
+                const res = await fetch('http://127.0.0.1:8000/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Registration successful! You received 100 free tokens.');
+                    authToken = data.token;
+                    localStorage.setItem('fibby_token', authToken);
+                    checkAuth();
+                } else {
+                    alert('Registration failed: ' + data.error);
+                }
+            } catch (err) {
+                alert('Registration error: ' + err.message);
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('fibby_token');
+            authToken = '';
+            checkAuth();
+        });
+
+        checkAuth();
 
         function logMessage(msg) {
             debugLog.style.display = 'block';
@@ -586,9 +771,14 @@
             debugLog.scrollTop = debugLog.scrollHeight;
         }
 
-        brushSizeInput.addEventListener('input', (e) => {
-            brushSize = e.target.value;
-            brushSizeVal.textContent = brushSize + 'px';
+        imageCountInput.addEventListener('input', (e) => {
+            const count = parseInt(e.target.value);
+            const mins = count * 2;
+            const cost = count * 3;
+            imageCountVal.textContent = count + ' Images';
+            generateBtn.textContent = `✨ Generate ${count} Fancy Variations (${cost} Tokens) ✨`;
+            timeEstimate.textContent = `⏱️ Estimated wait time: ~${mins} mins (~2 mins per picture) | Cost: ${cost} tokens (3 / picture)`;
+            loadingText.textContent = `🪩 Fibby is generating ${count} AI Variations (~${mins} mins estimated, ~2 mins per picture)...`;
         });
 
         imageUpload.addEventListener('change', (e) => {
@@ -600,8 +790,11 @@
                 baseImage.onload = function() {
                     canvas.width = baseImage.width;
                     canvas.height = baseImage.height;
-                    redrawCanvas();
                     editorSection.style.display = 'block';
+                    redrawCanvas();
+                    setTimeout(() => {
+                        canvas.getBoundingClientRect();
+                    }, 50);
                     drawnPoints = [];
                 }
                 baseImage.src = event.target.result;
@@ -621,34 +814,74 @@
 
         function getMousePos(evt) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const dispWidth = rect.width > 0 ? rect.width : canvas.width;
+            const dispHeight = rect.height > 0 ? rect.height : canvas.height;
+            const scaleX = canvas.width / dispWidth;
+            const scaleY = canvas.height / dispHeight;
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
             return {
-                x: (evt.clientX - rect.left) * scaleX,
-                y: (evt.clientY - rect.top) * scaleY
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         }
 
         canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
             drawnPoints.push({x: pos.x, y: pos.y, type: 'down'});
         });
 
         canvas.addEventListener('mousemove', (e) => {
+            e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
             ctx.lineWidth = brushSize;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(230, 40, 40, 0.65)';
+            ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             drawnPoints.push({x: pos.x, y: pos.y, type: 'move'});
         });
 
-        window.addEventListener('mouseup', () => {
+        window.addEventListener('mouseup', (e) => {
+            if (isDrawing) {
+                isDrawing = false;
+                drawnPoints.push({type: 'up'});
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
+            ctx.moveTo(pos.x, pos.y);
+            drawnPoints.push({x: pos.x, y: pos.y, type: 'down'});
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            drawnPoints.push({x: pos.x, y: pos.y, type: 'move'});
+        });
+
+        window.addEventListener('touchend', (e) => {
             if (isDrawing) {
                 isDrawing = false;
                 drawnPoints.push({type: 'up'});
@@ -666,20 +899,28 @@
                 return;
             }
 
+            const imageCount = parseInt(imageCountInput.value);
+            const cost = imageCount * 3;
+            if (userTokens < cost) {
+                alert(`Insufficient tokens! You need ${cost} tokens (${imageCount} images × 3), but you only have ${userTokens} tokens.`);
+                return;
+            }
+
             const imageBlob = imageUpload.files[0];
 
             const formData = new FormData();
             formData.append('image', imageBlob, 'base.png');
             formData.append('prompt', prompt);
-            formData.append('negative_prompt', document.getElementById('negativePrompt').value);
             formData.append('mask_points', JSON.stringify(drawnPoints));
             formData.append('canvas_width', canvas.width);
             formData.append('canvas_height', canvas.height);
+            formData.append('image_count', imageCount);
+            formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';
             resultContainer.style.display = 'none';
             debugLog.innerHTML = '';
-            logMessage("Starting Fibby request: sending base image and mask points to server...");
+            logMessage(`Starting Fibby request: generating ${imageCount} variations (cost: ${cost} tokens)...`);
 
             try {
                 const response = await fetch('http://127.0.0.1:8000/api/inpaint', {
@@ -688,6 +929,11 @@
                 });
                 const data = await response.json();
                 if (response.ok && data.result) {
+                    if (data.tokens_remaining !== undefined) {
+                        userTokens = data.tokens_remaining;
+                        tokenBadge.textContent = `🪙 ${userTokens} Tokens`;
+                    }
+
                     const res = data.result;
                     let images = [];
 
@@ -702,14 +948,17 @@
 
                     logMessage(`Success! Received ${images.length} generated variation(s) from Fibby.`);
 
-                    // Display Image 1
-                    resultImg1.src = images[0];
-                    download1.href = images[0];
-
-                    // Display Image 2 (or fallback to Image 1 if only 1 was returned)
-                    const img2Url = images.length > 1 ? images[1] : images[0];
-                    resultImg2.src = img2Url;
-                    download2.href = img2Url;
+                    resultsGrid.innerHTML = '';
+                    images.forEach((imgUrl, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'result-card';
+                        card.innerHTML = `
+                            <span class="card-badge">Option ${index + 1}</span>
+                            <img src="${imgUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
+                            <a href="${imgUrl}" class="btn-download" download="fibby_result_${index + 1}.png" target="_blank">⬇️ Download Image ${index + 1}</a>
+                        `;
+                        resultsGrid.appendChild(card);
+                    });
 
                     resultContainer.style.display = 'block';
                     resultContainer.scrollIntoView({ behavior: 'smooth' });

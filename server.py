@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from playwright.async_api import async_playwright
+from pydantic import BaseModel
 import shutil
 import os
 import glob
@@ -11,8 +12,19 @@ import asyncio
 import traceback
 import time
 import json
+import sqlite3
+import hashlib
+import secrets
 
 app = FastAPI()
+
+@app.middleware("http")
+async def add_no_cache_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,24 +41,111 @@ FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
 os.makedirs(FIBBY_OUTPUTS_DIR, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=FIBBY_OUTPUTS_DIR), name="outputs")
 
+# SQLite Database & Auth Setup
+DB_PATH = "users.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            tokens INTEGER DEFAULT 100
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+class UserRegister(BaseModel):
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/register")
+@app.post("/api/register/")
+async def register(data: UserRegister):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    try:
+        p_hash = hash_password(data.password)
+        cursor.execute("INSERT INTO users (email, password_hash, tokens) VALUES (?, ?, 100)", (data.email, p_hash))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return JSONResponse(status_code=400, content={"error": "Email already registered."})
+
+    session_token = secrets.token_hex(32)
+    cursor.execute("INSERT INTO sessions (token, email) VALUES (?, ?)", (session_token, data.email))
+    conn.commit()
+    conn.close()
+    return {"token": session_token, "email": data.email, "tokens": 100}
+
+@app.post("/api/login")
+@app.post("/api/login/")
+async def login(data: UserLogin):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    p_hash = hash_password(data.password)
+    cursor.execute("SELECT tokens FROM users WHERE email = ? AND password_hash = ?", (data.email, p_hash))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return JSONResponse(status_code=400, content={"error": "Invalid email or password."})
+
+    tokens = row[0]
+    session_token = secrets.token_hex(32)
+    cursor.execute("REPLACE INTO sessions (token, email) VALUES (?, ?)", (session_token, data.email))
+    conn.commit()
+    conn.close()
+    return {"token": session_token, "email": data.email, "tokens": tokens}
+
+@app.get("/api/me")
+@app.get("/api/me/")
+async def me(token: str = None):
+    if not token:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM sessions WHERE token = ?", (token,))
+    s_row = cursor.fetchone()
+    if not s_row:
+        conn.close()
+        return JSONResponse(status_code=401, content={"error": "Invalid session"})
+    email = s_row[0]
+    cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
+    u_row = cursor.fetchone()
+    conn.close()
+    if not u_row:
+        return JSONResponse(status_code=404, content={"error": "User not found"})
+    return {"email": email, "tokens": u_row[0]}
+
 def extract_and_store_generated_images(start_time=None, count=2):
-    """
-    Finds the 2 generated PNGs created during this run (after start_time),
-    copies them into Fibby's local 'outputs' folder, and returns static Fibby URLs.
-    """
     found_paths = []
     seen_filenames = set()
-    min_ctime = (start_time - 10) if start_time else 0
 
-    # 1. Search Temp/fooocus subdirectories
     temp_dir = r"C:\Users\nstra\AppData\Local\Temp\fooocus"
     if os.path.exists(temp_dir):
         subdirs = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
         subdirs.sort(key=os.path.getmtime, reverse=True)
 
-        for sd in subdirs:
-            if start_time and os.path.getmtime(sd) < min_ctime:
-                continue
+        target_subdirs = subdirs[:max(count * 2, 6)]
+        for sd in target_subdirs:
             pngs = glob.glob(os.path.join(sd, "*.png"))
             if pngs:
                 pngs.sort(key=os.path.getctime, reverse=True)
@@ -56,7 +155,6 @@ def extract_and_store_generated_images(start_time=None, count=2):
                     seen_filenames.add(fname)
                     found_paths.append((os.path.getctime(p), p))
 
-    # 2. Search Fooocus outputs folder
     out_dir = r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\outputs"
     if os.path.exists(out_dir):
         pngs = glob.glob(os.path.join(out_dir, "**", "*.png"), recursive=True)
@@ -64,20 +162,16 @@ def extract_and_store_generated_images(start_time=None, count=2):
             try:
                 ctime = os.path.getctime(p)
                 fname = os.path.basename(p)
-                if ctime >= min_ctime and fname not in seen_filenames and os.path.getsize(p) > 50000:
+                if fname not in seen_filenames and os.path.getsize(p) > 50000:
                     seen_filenames.add(fname)
                     found_paths.append((ctime, p))
             except:
                 pass
 
-    # Sort chronologically (oldest first)
     found_paths.sort(key=lambda x: x[0])
-
-    # Take the count newest files
     if len(found_paths) > count:
         found_paths = found_paths[-count:]
 
-    # Copy files to Fibby's static 'outputs' directory
     stored_urls = []
     for ctime, pth in found_paths:
         dest_filename = f"{int(ctime)}_{os.path.basename(pth)}"
@@ -87,11 +181,9 @@ def extract_and_store_generated_images(start_time=None, count=2):
         stored_urls.append(url)
         print(f"[Fibby Storage] Stored {pth} -> {dest_path}")
 
-    # Safety duplicate if only 1 image found
     while len(stored_urls) < count and len(stored_urls) > 0:
         stored_urls.append(stored_urls[0])
 
-    print(f"[Fibby Storage] Final stored URLs ({len(stored_urls)} returned): {stored_urls}")
     return stored_urls
 
 @app.post("/api/inpaint")
@@ -102,8 +194,35 @@ async def inpaint(
     negative_prompt: str = Form(default=""),
     mask_points: str = Form(default="[]"),
     canvas_width: float = Form(default=512),
-    canvas_height: float = Form(default=512)
+    canvas_height: float = Form(default=512),
+    image_count: int = Form(default=2),
+    auth_token: str = Form(default="")
 ):
+    token_cost = image_count * 3
+    if not auth_token:
+        return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
+    s_row = cursor.fetchone()
+    if not s_row:
+        conn.close()
+        return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
+    email = s_row[0]
+
+    cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
+    u_row = cursor.fetchone()
+    if not u_row or u_row[0] < token_cost:
+        conn.close()
+        return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens ({image_count} images × 3), Available: {u_row[0] if u_row else 0} tokens."})
+
+    current_tokens = u_row[0]
+    new_tokens = current_tokens - token_cost
+    cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
+    conn.commit()
+    conn.close()
+
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -153,30 +272,23 @@ async def inpaint(
             except Exception as ex:
                 print(f"[Playwright] Method selection warning: {ex}")
 
-            print("[Playwright] Enabling 'Advanced' mode to set Image Number = 2...")
+            print(f"[Playwright] Enabling 'Advanced' mode to set Image Number = {image_count}...")
             try:
                 adv_chk = page.locator("label:has-text('Advanced') input[type='checkbox']").first
                 if await adv_chk.count() > 0 and not await adv_chk.is_checked():
                     await adv_chk.check()
-                    print("[Playwright] Checked 'Advanced' checkbox!")
 
                 await page.wait_for_selector("div:has-text('Image Number')", timeout=10000)
                 await asyncio.sleep(0.5)
 
-                num_set = False
                 for inp in await page.locator("input[type='number']").all():
                     p_text = await inp.evaluate("el => el.closest('.component, .form, div')?.innerText || ''")
                     if "Image Number" in p_text:
                         await inp.click()
-                        await inp.fill("2")
+                        await inp.fill(str(image_count))
                         await inp.press("Enter")
                         await inp.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
-                        val = await inp.input_value()
-                        print(f"[Playwright] Successfully set Image Number input to: {val}")
-                        num_set = True
                         break
-                if not num_set:
-                    print("[Playwright Warning]: Image Number input element was not found in DOM!")
             except Exception as ex:
                 print(f"[Playwright] Advanced/Image Number setting error: {ex}")
 
@@ -189,8 +301,11 @@ async def inpaint(
             print("[Playwright] Waiting for canvas image preview to render...")
             await asyncio.sleep(2)
 
-            print("[Playwright] Replaying optimized mask strokes instantly onto Fooocus canvas...")
             canvas_el = inpaint_tab.locator("canvas").first
+            await canvas_el.scroll_into_view_if_needed()
+            await asyncio.sleep(1)
+
+            print("[Playwright] Replaying optimized mask strokes instantly onto Fooocus canvas...")
             box = await canvas_el.bounding_box()
             if box and points:
                 scale_x = box["width"] / float(canvas_width)
@@ -209,12 +324,10 @@ async def inpaint(
                     await page.mouse.up()
                 except:
                     pass
-                print("[Playwright] Mask strokes replayed successfully!")
             else:
                 if box:
                     cx = box["x"] + box["width"] / 2
                     cy = box["y"] + box["height"] / 2
-                    print("[Playwright] Drawing 200px fallback mask in center...")
                     await page.mouse.move(cx - 80, cy - 80)
                     await page.mouse.down()
                     for r in range(10, 100, 15):
@@ -225,7 +338,32 @@ async def inpaint(
                             await page.mouse.move(mx, my)
                     await page.mouse.up()
 
-            await asyncio.sleep(1)
+            print("[Playwright] Waiting for uploaded image preview to appear in Fooocus...")
+            try:
+                await page.wait_for_selector("#component-70 img, .image-container img, img[src*='blob:']", timeout=15000)
+            except:
+                pass
+
+            await asyncio.sleep(3)
+
+            print(f"[Playwright] Entering prompt into main box: '{prompt}'...")
+            main_ta = page.locator("textarea[placeholder*='paste parameters'], textarea[placeholder*='Type prompt here or']").first
+            if await main_ta.count() > 0:
+                await main_ta.scroll_into_view_if_needed()
+                await main_ta.click()
+                await main_ta.fill(prompt)
+                await main_ta.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
+                await asyncio.sleep(0.5)
+
+            if negative_prompt:
+                neg_ta = page.locator("textarea[placeholder='Type prompt here.'], textarea[placeholder*='Describing what you do not want']").first
+                if await neg_ta.count() > 0:
+                    await neg_ta.scroll_into_view_if_needed()
+                    await neg_ta.click()
+                    await neg_ta.fill(negative_prompt)
+                    await neg_ta.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
+                    await asyncio.sleep(0.5)
+
             start_time = time.time()
 
             print("[Playwright] Clicking Generate button...")
@@ -235,7 +373,6 @@ async def inpaint(
 
             try:
                 await page.wait_for_selector("#stop_button", state="visible", timeout=20000)
-                print("[Playwright] Fooocus generation is actively running...")
             except Exception:
                 pass
 
@@ -244,8 +381,7 @@ async def inpaint(
 
             await asyncio.sleep(3)
 
-            # Store the 2 generated images in Fibby's own local static folder and return Fibby URLs
-            stored_urls = extract_and_store_generated_images(start_time=start_time, count=2)
+            stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count)
 
             if not stored_urls or len(stored_urls) == 0:
                 raise Exception("No generated output images found or stored.")
@@ -253,7 +389,7 @@ async def inpaint(
             await asyncio.sleep(1)
             await browser.close()
 
-            return {"result": stored_urls}
+            return {"result": stored_urls, "tokens_remaining": new_tokens}
 
     except Exception as e:
         print("[Playwright Error]:", traceback.format_exc())
