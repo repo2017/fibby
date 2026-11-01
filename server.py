@@ -200,7 +200,13 @@ async def inpaint(
     image_count: int = Form(default=2),
     auth_token: str = Form(default="")
 ):
-    # 1. If running on Render (Cloud Controller mode) and LOCAL_WORKER_URL is configured:
+    # Detect if we are running on Render cloud
+    is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
+
+    if is_render and not LOCAL_WORKER_URL:
+        return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
+
+    # 1. If LOCAL_WORKER_URL is configured (Render Cloud Controller mode):
     if LOCAL_WORKER_URL:
         token_cost = image_count * 3
         if not auth_token:
@@ -250,7 +256,7 @@ async def inpaint(
             except Exception as e:
                 return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
 
-    # 2. Otherwise (Local GPU Worker mode): execute Playwright + Fooocus immediately without local token check
+    # 2. Otherwise (Local GPU Worker mode): execute Playwright + Fooocus locally
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
