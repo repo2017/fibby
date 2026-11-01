@@ -42,7 +42,7 @@ FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
 os.makedirs(FIBBY_OUTPUTS_DIR, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=FIBBY_OUTPUTS_DIR), name="outputs")
 
-# SQLite Database & Auth Setup
+# SQLite Database & Auth Setup (Used on Render Cloud Controller)
 DB_PATH = "users.db"
 
 def init_db():
@@ -200,33 +200,33 @@ async def inpaint(
     image_count: int = Form(default=2),
     auth_token: str = Form(default="")
 ):
-    token_cost = image_count * 3
-    if not auth_token:
-        return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
-
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
-    s_row = cursor.fetchone()
-    if not s_row:
-        conn.close()
-        return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
-    email = s_row[0]
-
-    cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
-    u_row = cursor.fetchone()
-    if not u_row or u_row[0] < token_cost:
-        conn.close()
-        return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens ({image_count} images × 3), Available: {u_row[0] if u_row else 0} tokens."})
-
-    current_tokens = u_row[0]
-    new_tokens = current_tokens - token_cost
-    cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
-    conn.commit()
-    conn.close()
-
-    # If running on Render (Cloud Controller mode) and LOCAL_WORKER_URL is configured:
+    # 1. If running on Render (Cloud Controller mode) and LOCAL_WORKER_URL is configured:
     if LOCAL_WORKER_URL:
+        token_cost = image_count * 3
+        if not auth_token:
+            return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
+        s_row = cursor.fetchone()
+        if not s_row:
+            conn.close()
+            return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
+        email = s_row[0]
+
+        cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
+        u_row = cursor.fetchone()
+        if not u_row or u_row[0] < token_cost:
+            conn.close()
+            return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens ({image_count} images × 3), Available: {u_row[0] if u_row else 0} tokens."})
+
+        current_tokens = u_row[0]
+        new_tokens = current_tokens - token_cost
+        cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
+        conn.commit()
+        conn.close()
+
         print(f"[Cloud Controller] Proxying generation request to local GPU worker: {LOCAL_WORKER_URL}")
         img_bytes = await image.read()
         files = {"image": (image.filename, img_bytes, image.content_type or "image/png")}
@@ -250,7 +250,7 @@ async def inpaint(
             except Exception as e:
                 return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
 
-    # Otherwise (Local GPU Worker mode), execute Playwright + Fooocus locally
+    # 2. Otherwise (Local GPU Worker mode), receive proxied request and execute Playwright + Fooocus locally
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -418,7 +418,7 @@ async def inpaint(
             await asyncio.sleep(1)
             await browser.close()
 
-            return {"result": stored_urls, "tokens_remaining": new_tokens}
+            return {"result": stored_urls}
 
     except Exception as e:
         print("[Playwright Error]:", traceback.format_exc())
