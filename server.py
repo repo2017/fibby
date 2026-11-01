@@ -35,12 +35,22 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
-LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL") # e.g. https://metal-ways-camp.loca.lt/api/inpaint
+LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL") # e.g. https://fibby-worker.loca.lt/api/inpaint
 
 # Permanent local storage for Fibby
 FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
 os.makedirs(FIBBY_OUTPUTS_DIR, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=FIBBY_OUTPUTS_DIR), name="outputs")
+
+# In-Memory Async Job Queue Store
+JOBS = {}
+
+@app.get("/api/job-status")
+@app.get("/api/job-status/")
+async def job_status(job_id: str):
+    if job_id not in JOBS:
+        return JSONResponse(status_code=404, content={"error": "Job not found"})
+    return JOBS[job_id]
 
 # SQLite Database & Auth Setup (Used on Render Cloud Controller)
 DB_PATH = "users.db"
@@ -187,116 +197,34 @@ def extract_and_store_generated_images(start_time=None, count=2):
 
     return stored_urls
 
-@app.post("/api/inpaint")
-@app.post("/api/inpaint/")
-async def inpaint(
-    image: UploadFile = File(...),
-    mask: UploadFile = File(default=None),
-    prompt: str = Form(...),
-    negative_prompt: str = Form(default=""),
-    mask_points: str = Form(default="[]"),
-    canvas_width: float = Form(default=512),
-    canvas_height: float = Form(default=512),
-    image_count: int = Form(default=2),
-    auth_token: str = Form(default="")
-):
-    # Detect if we are running on Render cloud
-    is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
-
-    if is_render and not LOCAL_WORKER_URL:
-        return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
-
-    # 1. If LOCAL_WORKER_URL is configured (Render Cloud Controller mode):
-    if LOCAL_WORKER_URL:
-        token_cost = image_count * 3
-        if not auth_token:
-            return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
-        s_row = cursor.fetchone()
-        if not s_row:
-            conn.close()
-            return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
-        email = s_row[0]
-
-        cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
-        u_row = cursor.fetchone()
-        if not u_row or u_row[0] < token_cost:
-            conn.close()
-            return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens ({image_count} images × 3), Available: {u_row[0] if u_row else 0} tokens."})
-
-        current_tokens = u_row[0]
-        new_tokens = current_tokens - token_cost
-        cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
-        conn.commit()
-        conn.close()
-
-        print(f"[Cloud Controller] Proxying generation request to local GPU worker: {LOCAL_WORKER_URL}")
-        img_bytes = await image.read()
-        files = {"image": (image.filename, img_bytes, image.content_type or "image/png")}
-        data = {
-            "prompt": prompt,
-            "negative_prompt": negative_prompt,
-            "mask_points": mask_points,
-            "canvas_width": str(canvas_width),
-            "canvas_height": str(canvas_height),
-            "image_count": str(image_count)
-        }
-        async with httpx.AsyncClient(timeout=600.0) as client:
-            try:
-                resp = await client.post(LOCAL_WORKER_URL, files=files, data=data)
-                if resp.status_code == 200:
-                    res_json = resp.json()
-                    res_json["tokens_remaining"] = new_tokens
-                    return res_json
-                else:
-                    return JSONResponse(status_code=resp.status_code, content={"error": f"Local worker error: {resp.text}"})
-            except Exception as e:
-                return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
-
-    # 2. Otherwise (Local GPU Worker mode): execute Playwright + Fooocus locally
-    temp_dir = "temp_inputs"
-    os.makedirs(temp_dir, exist_ok=True)
-
-    image_path = os.path.abspath(os.path.join(temp_dir, f"img_{image.filename}"))
-    with open(image_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-
-    try:
-        points = json.loads(mask_points)
-    except:
-        points = []
-
+async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count):
+    JOBS[job_id] = {"status": "processing"}
     browser = None
     try:
         from playwright.async_api import async_playwright
-        print("[Playwright] Launching browser (lightning fast, slow_mo=0)...")
+        print(f"[Job {job_id}] Launching browser...")
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False)
             page = await browser.new_page()
 
-            print(f"[Playwright] Navigating to {FOOOCUS_URL}...")
+            print(f"[Job {job_id}] Navigating to {FOOOCUS_URL}...")
             await page.goto(FOOOCUS_URL, timeout=60000)
-
-            print("[Playwright] Waiting for Fooocus UI to load...")
             await page.wait_for_selector("body", timeout=30000)
             await asyncio.sleep(3)
 
-            print("[Playwright] Enabling 'Input Image'...")
+            print(f"[Job {job_id}] Enabling 'Input Image'...")
             input_img_lbl = page.locator("text=Input Image")
             if await input_img_lbl.count() > 0:
                 await input_img_lbl.first.click()
                 await asyncio.sleep(1)
 
-            print("[Playwright] Clicking 'Inpaint or Outpaint' tab...")
+            print(f"[Job {job_id}] Clicking 'Inpaint or Outpaint' tab...")
             inpaint_btn = page.locator("button:has-text('Inpaint or Outpaint')")
             if await inpaint_btn.count() > 0:
                 await inpaint_btn.first.click()
                 await asyncio.sleep(1)
 
-            print("[Playwright] Setting Inpaint Method to 'Modify Content'...")
+            print(f"[Job {job_id}] Setting Inpaint Method to 'Modify Content'...")
             try:
                 method_input = page.locator("label:has-text('Method') input").first
                 if await method_input.count() > 0:
@@ -305,9 +233,9 @@ async def inpaint(
                     await page.keyboard.press("Enter")
                     await asyncio.sleep(0.5)
             except Exception as ex:
-                print(f"[Playwright] Method selection warning: {ex}")
+                print(f"[Job {job_id}] Method selection warning: {ex}")
 
-            print(f"[Playwright] Enabling 'Advanced' mode to set Image Number = {image_count}...")
+            print(f"[Job {job_id}] Enabling 'Advanced' mode to set Image Number = {image_count}...")
             try:
                 adv_chk = page.locator("label:has-text('Advanced') input[type='checkbox']").first
                 if await adv_chk.count() > 0 and not await adv_chk.is_checked():
@@ -325,22 +253,20 @@ async def inpaint(
                         await inp.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
                         break
             except Exception as ex:
-                print(f"[Playwright] Advanced/Image Number setting error: {ex}")
+                print(f"[Job {job_id}] Advanced/Image Number setting error: {ex}")
 
-            print("[Playwright] Uploading base image into Inpaint Canvas slot...")
+            print(f"[Job {job_id}] Uploading base image...")
             inpaint_tab = page.locator("#component-70")
             fi = inpaint_tab.locator("input[type='file']").first
             await fi.set_input_files(image_path)
             await fi.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
-
-            print("[Playwright] Waiting for canvas image preview to render...")
             await asyncio.sleep(2)
 
             canvas_el = inpaint_tab.locator("canvas").first
             await canvas_el.scroll_into_view_if_needed()
             await asyncio.sleep(1)
 
-            print("[Playwright] Replaying optimized mask strokes instantly onto Fooocus canvas...")
+            print(f"[Job {job_id}] Replaying mask strokes...")
             box = await canvas_el.bounding_box()
             if box and points:
                 scale_x = box["width"] / float(canvas_width)
@@ -373,15 +299,13 @@ async def inpaint(
                             await page.mouse.move(mx, my)
                     await page.mouse.up()
 
-            print("[Playwright] Waiting for uploaded image preview to appear in Fooocus...")
             try:
                 await page.wait_for_selector("#component-70 img, .image-container img, img[src*='blob:']", timeout=15000)
             except:
                 pass
-
             await asyncio.sleep(3)
 
-            print(f"[Playwright] Entering prompt into main box: '{prompt}'...")
+            print(f"[Job {job_id}] Entering prompt: '{prompt}'...")
             main_ta = page.locator("textarea[placeholder*='paste parameters'], textarea[placeholder*='Type prompt here or']").first
             if await main_ta.count() > 0:
                 await main_ta.scroll_into_view_if_needed()
@@ -400,43 +324,126 @@ async def inpaint(
                     await asyncio.sleep(0.5)
 
             start_time = time.time()
-
-            print("[Playwright] Clicking Generate button...")
+            print(f"[Job {job_id}] Clicking Generate button...")
             await page.locator("#generate_button").click(force=True)
-
-            print("[Playwright] Generation started! Waiting for Fooocus to finish processing...")
 
             try:
                 await page.wait_for_selector("#stop_button", state="visible", timeout=20000)
-            except Exception:
+            except:
                 pass
 
             await page.wait_for_selector("#stop_button", state="hidden", timeout=600000)
-            print("[Playwright] Fooocus generation completed! Storing generated output files...")
-
+            print(f"[Job {job_id}] Generation completed! Storing output...")
             await asyncio.sleep(3)
 
             stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count)
-
             if not stored_urls or len(stored_urls) == 0:
-                raise Exception("No generated output images found or stored.")
+                raise Exception("No generated output images found.")
 
-            await asyncio.sleep(1)
+            JOBS[job_id] = {"status": "completed", "result": stored_urls}
             await browser.close()
-
-            return {"result": stored_urls}
-
     except Exception as e:
-        print("[Playwright Error]:", traceback.format_exc())
+        print(f"[Job {job_id} Error]:", traceback.format_exc())
+        JOBS[job_id] = {"status": "error", "error": str(e)}
         if browser:
             try:
                 await browser.close()
             except:
                 pass
-        return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         if os.path.exists(image_path):
-            os.remove(image_path)
+            try:
+                os.remove(image_path)
+            except:
+                pass
+
+@app.post("/api/inpaint")
+@app.post("/api/inpaint/")
+async def inpaint(
+    image: UploadFile = File(...),
+    mask: UploadFile = File(default=None),
+    prompt: str = Form(...),
+    negative_prompt: str = Form(default=""),
+    mask_points: str = Form(default="[]"),
+    canvas_width: float = Form(default=512),
+    canvas_height: float = Form(default=512),
+    image_count: int = Form(default=2),
+    auth_token: str = Form(default="")
+):
+    is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
+
+    if is_render and not LOCAL_WORKER_URL:
+        return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
+
+    # 1. Render Cloud Controller mode
+    if LOCAL_WORKER_URL:
+        token_cost = image_count * 3
+        if not auth_token:
+            return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
+        s_row = cursor.fetchone()
+        if not s_row:
+            conn.close()
+            return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
+        email = s_row[0]
+
+        cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
+        u_row = cursor.fetchone()
+        if not u_row or u_row[0] < token_cost:
+            conn.close()
+            return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens, Available: {u_row[0] if u_row else 0}."})
+
+        current_tokens = u_row[0]
+        new_tokens = current_tokens - token_cost
+        cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
+        conn.commit()
+        conn.close()
+
+        print(f"[Cloud Controller] Dispatching async job to local worker: {LOCAL_WORKER_URL}")
+        img_bytes = await image.read()
+        files = {"image": (image.filename, img_bytes, image.content_type or "image/png")}
+        data = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "mask_points": mask_points,
+            "canvas_width": str(canvas_width),
+            "canvas_height": str(canvas_height),
+            "image_count": str(image_count)
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                resp = await client.post(LOCAL_WORKER_URL, files=files, data=data, headers={"Bypass-Tunnel-Remind": "true"})
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    res_json["tokens_remaining"] = new_tokens
+                    return res_json
+                else:
+                    return JSONResponse(status_code=resp.status_code, content={"error": f"Local worker error: {resp.text}"})
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
+
+    # 2. Local GPU Worker mode: Start job asynchronously and return job_id immediately
+    temp_dir = "temp_inputs"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    image_path = os.path.abspath(os.path.join(temp_dir, f"img_{image.filename}"))
+    with open(image_path, "wb") as buffer:
+        shutil.copyfileobj(image.file, buffer)
+
+    try:
+        points = json.loads(mask_points)
+    except:
+        points = []
+
+    job_id = secrets.token_hex(16)
+    asyncio.create_task(process_inpaint_job(
+        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count
+    ))
+
+    return {"job_id": job_id, "status": "processing"}
 
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
