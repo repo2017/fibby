@@ -2,7 +2,6 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from playwright.async_api import async_playwright
 from pydantic import BaseModel
 import shutil
 import os
@@ -15,6 +14,7 @@ import json
 import sqlite3
 import hashlib
 import secrets
+import httpx
 
 app = FastAPI()
 
@@ -35,6 +35,7 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
+LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL") # e.g. https://metal-ways-camp.loca.lt/api/inpaint
 
 # Permanent local storage for Fibby
 FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
@@ -187,6 +188,7 @@ def extract_and_store_generated_images(start_time=None, count=2):
     return stored_urls
 
 @app.post("/api/inpaint")
+@app.post("/api/inpaint/")
 async def inpaint(
     image: UploadFile = File(...),
     mask: UploadFile = File(default=None),
@@ -223,6 +225,32 @@ async def inpaint(
     conn.commit()
     conn.close()
 
+    # If running on Render (Cloud Controller mode) and LOCAL_WORKER_URL is configured:
+    if LOCAL_WORKER_URL:
+        print(f"[Cloud Controller] Proxying generation request to local GPU worker: {LOCAL_WORKER_URL}")
+        img_bytes = await image.read()
+        files = {"image": (image.filename, img_bytes, image.content_type or "image/png")}
+        data = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "mask_points": mask_points,
+            "canvas_width": str(canvas_width),
+            "canvas_height": str(canvas_height),
+            "image_count": str(image_count)
+        }
+        async with httpx.AsyncClient(timeout=600.0) as client:
+            try:
+                resp = await client.post(LOCAL_WORKER_URL, files=files, data=data)
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    res_json["tokens_remaining"] = new_tokens
+                    return res_json
+                else:
+                    return JSONResponse(status_code=resp.status_code, content={"error": f"Local worker error: {resp.text}"})
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
+
+    # Otherwise (Local GPU Worker mode), execute Playwright + Fooocus locally
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -237,6 +265,7 @@ async def inpaint(
 
     browser = None
     try:
+        from playwright.async_api import async_playwright
         print("[Playwright] Launching browser (lightning fast, slow_mo=0)...")
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False)
