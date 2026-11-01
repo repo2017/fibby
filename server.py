@@ -250,7 +250,7 @@ async def inpaint(
             except Exception as e:
                 return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
 
-    # 2. Otherwise (Local GPU Worker mode), receive proxied request and execute Playwright + Fooocus locally
+    # 2. Otherwise (Local GPU Worker mode): execute Playwright + Fooocus immediately without local token check
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
