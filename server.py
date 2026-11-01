@@ -16,7 +16,7 @@ import hashlib
 import secrets
 import httpx
 
-app = FastAPI()
+app = FastAPI(redirect_slashes=False)
 
 @app.middleware("http")
 async def add_no_cache_header(request, call_next):
