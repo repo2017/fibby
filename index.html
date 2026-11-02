@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.0 - Adaptive High-Res Brush Scaling)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.1 - Perfect Screen-to-Bitmap Brush Scaling)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -856,7 +856,9 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize;
+            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
+            const resolutionScale = canvas.width / dispWidth;
+            ctx.lineWidth = brushSize * resolutionScale;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -867,7 +869,9 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize;
+            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
+            const resolutionScale = canvas.width / dispWidth;
+            ctx.lineWidth = brushSize * resolutionScale;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -887,7 +891,9 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize;
+            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
+            const resolutionScale = canvas.width / dispWidth;
+            ctx.lineWidth = brushSize * resolutionScale;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -898,7 +904,9 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize;
+            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
+            const resolutionScale = canvas.width / dispWidth;
+            ctx.lineWidth = brushSize * resolutionScale;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
