@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.8 - Cloudflare Image Proxy Stream)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.9 - Proportional High-Res Brush Scaling)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -958,6 +958,11 @@
 
             const imageBlob = imageUpload.files[0];
 
+            const rect = canvas.getBoundingClientRect();
+            const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
+            const resolutionScale = (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
+            const effectiveBrushSize = (typeof brushSize !== 'undefined' ? brushSize : 35) * resolutionScale;
+
             const formData = new FormData();
             formData.append('image', imageBlob, 'base.png');
             formData.append('prompt', prompt);
@@ -965,7 +970,7 @@
             formData.append('canvas_width', canvas.width);
             formData.append('canvas_height', canvas.height);
             formData.append('image_count', imageCount);
-            formData.append('brush_size', brushSize);
+            formData.append('brush_size', effectiveBrushSize);
             formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';
