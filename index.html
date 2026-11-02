@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.3 - Mobile LocalStorage & Auth Safeguards)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.4 - Detailed Error Logging & Terminal Debugger)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -977,10 +977,18 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json().catch(() => ({ error: 'Server returned invalid JSON response' }));
+                const responseText = await response.text();
+                let data = {};
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    data = { error: 'Raw Response: ' + responseText.substring(0, 200) };
+                }
+
                 if (!response.ok) {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                    logMessage('Error from server: ' + (data.error || 'Unknown error'));
+                    const errDetail = data.error || response.statusText || 'Unknown server error';
+                    alert('Error: ' + errDetail);
+                    logMessage('SERVER ERROR (' + response.status + '): ' + errDetail);
                     loadingIndicator.style.display = 'none';
                     return;
                 }
@@ -1053,8 +1061,9 @@
                 }, 4000);
 
             } catch (err) {
-                logMessage("Request failed: " + err.message);
-                alert('Request failed: ' + err.message);
+                const errDetail = err.message || err.toString();
+                logMessage("NETWORK/JS ERROR: " + errDetail);
+                alert('Request failed: ' + errDetail);
                 loadingIndicator.style.display = 'none';
             }
         });
