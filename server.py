@@ -65,6 +65,29 @@ async def job_status(job_id: str):
             return JSONResponse(status_code=404, content={"error": "Job not found"})
         return JOBS[job_id]
 
+@app.get("/api/outputs/{filename}")
+@app.get("/api/outputs/{filename}/")
+async def proxy_output(filename: str):
+    if LOCAL_WORKER_URL:
+        worker_outputs_url = LOCAL_WORKER_URL.replace("/api/inpaint", f"/outputs/{filename}")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                resp = await client.get(worker_outputs_url, headers={"Bypass-Tunnel-Remind": "true"})
+                if resp.status_code == 200:
+                    from fastapi.responses import Response
+                    content_type = resp.headers.get("content-type", "image/png")
+                    return Response(content=resp.content, media_type=content_type)
+                else:
+                    return JSONResponse(status_code=resp.status_code, content={"error": "Image not found on worker"})
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"error": f"Failed to fetch image from worker: {str(e)}"})
+    else:
+        file_path = os.path.join(FIBBY_OUTPUTS_DIR, filename)
+        if os.path.exists(file_path):
+            from fastapi.responses import FileResponse
+            return FileResponse(file_path)
+        return JSONResponse(status_code=404, content={"error": "File not found"})
+
 # SQLite Database & Auth Setup (Used on Render Cloud Controller)
 DB_PATH = "users.db"
 
@@ -201,7 +224,7 @@ def extract_and_store_generated_images(start_time=None, count=2):
         dest_filename = f"{int(ctime)}_{os.path.basename(pth)}"
         dest_path = os.path.join(FIBBY_OUTPUTS_DIR, dest_filename)
         shutil.copy2(pth, dest_path)
-        url = f"{PUBLIC_WORKER_URL}/outputs/{dest_filename}"
+        url = f"/api/outputs/{dest_filename}"
         stored_urls.append(url)
         print(f"[Fibby Storage] Stored {pth} -> {dest_path} ({url})")
 
