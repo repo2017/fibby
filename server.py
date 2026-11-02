@@ -35,8 +35,11 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
-LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL") # e.g. https://fibby-worker.loca.lt/api/inpaint
-PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "http://127.0.0.1:8000")
+LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL")
+if LOCAL_WORKER_URL:
+    LOCAL_WORKER_URL = LOCAL_WORKER_URL.strip().replace("%20", "").strip()
+
+PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "http://127.0.0.1:8000").strip().replace("%20", "").strip()
 
 # Permanent local storage for Fibby
 FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
