@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.5 - Dynamic Ratio-Based WYSIWYG Sync)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.0 - Interactive Brush Size Slider & 15px Default)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -626,10 +626,17 @@
                     <canvas id="imageCanvas"></canvas>
                 </div>
                 <div class="controls">
-                    <span style="font-size: 15px; font-weight: 600;">Number of Images (2-6):</span>
-                    <input type="range" id="imageCount" min="2" max="6" value="2">
-                    <span class="brush-val-badge" id="imageCountVal">2 Images</span>
-                    <button class="btn-secondary" id="clearMaskBtn">Clear Mask</button>
+                    <div style="display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 12px; flex-wrap: wrap;">
+                        <span style="font-size: 15px; font-weight: 600;">🖌️ Brush Thickness:</span>
+                        <input type="range" id="brushSizeInput" min="5" max="60" value="15" style="width: 180px;">
+                        <span class="brush-val-badge" id="brushValBadge">15px</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap;">
+                        <span style="font-size: 15px; font-weight: 600;">🖼️ Number of Images (2-6):</span>
+                        <input type="range" id="imageCount" min="2" max="6" value="2" style="width: 180px;">
+                        <span class="brush-val-badge" id="imageCountVal">2 Images</span>
+                        <button class="btn-secondary" id="clearMaskBtn">Clear Mask</button>
+                    </div>
                     <div class="time-estimate" id="timeEstimate">⏱️ Estimated wait time: ~4 mins (~2 mins per picture) | Cost: 6 tokens (3 / picture)</div>
                 </div>
             </div>
@@ -695,6 +702,9 @@
         const resultsGrid = document.getElementById('resultsGrid');
         const debugLog = document.getElementById('debugLog');
 
+        const brushSizeInput = document.getElementById('brushSizeInput');
+        const brushValBadge = document.getElementById('brushValBadge');
+
         let authToken = '';
         try {
             authToken = localStorage.getItem('fibby_token') || '';
@@ -705,7 +715,7 @@
         let userTokens = 100;
         let baseImage = new Image();
         let isDrawing = false;
-        let brushSize = 35;
+        let brushSize = 15;
         let drawnPoints = [];
 
         async function checkAuth() {
@@ -801,6 +811,11 @@
             debugLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
             debugLog.scrollTop = debugLog.scrollHeight;
         }
+
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            brushValBadge.textContent = brushSize + 'px';
+        });
 
         imageCountInput.addEventListener('input', (e) => {
             const count = parseInt(e.target.value);
