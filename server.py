@@ -36,6 +36,7 @@ app.add_middleware(
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
 LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL") # e.g. https://fibby-worker.loca.lt/api/inpaint
+PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "http://127.0.0.1:8000")
 
 # Permanent local storage for Fibby
 FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
@@ -188,9 +189,9 @@ def extract_and_store_generated_images(start_time=None, count=2):
         dest_filename = f"{int(ctime)}_{os.path.basename(pth)}"
         dest_path = os.path.join(FIBBY_OUTPUTS_DIR, dest_filename)
         shutil.copy2(pth, dest_path)
-        url = f"http://127.0.0.1:8000/outputs/{dest_filename}"
+        url = f"{PUBLIC_WORKER_URL}/outputs/{dest_filename}"
         stored_urls.append(url)
-        print(f"[Fibby Storage] Stored {pth} -> {dest_path}")
+        print(f"[Fibby Storage] Stored {pth} -> {dest_path} ({url})")
 
     while len(stored_urls) < count and len(stored_urls) > 0:
         stored_urls.append(stored_urls[0])
