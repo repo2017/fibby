@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.2 - Mobile File Upload Touch Fix)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.3 - Null Listener Fix & Clean Script Load)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -697,9 +697,6 @@
         const resultsGrid = document.getElementById('resultsGrid');
         const debugLog = document.getElementById('debugLog');
 
-        const brushSizeInput = document.getElementById('brushSizeInput');
-        const brushValBadge = document.getElementById('brushValBadge');
-
         let authToken = '';
         try {
             authToken = localStorage.getItem('fibby_token') || '';
@@ -710,7 +707,6 @@
         let userTokens = 100;
         let baseImage = new Image();
         let isDrawing = false;
-        let brushSize = 15;
         let drawnPoints = [];
 
         async function checkAuth() {
@@ -806,11 +802,6 @@
             debugLog.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
             debugLog.scrollTop = debugLog.scrollHeight;
         }
-
-        brushSizeInput.addEventListener('input', (e) => {
-            brushSize = parseInt(e.target.value);
-            brushValBadge.textContent = brushSize + 'px';
-        });
 
         imageCountInput.addEventListener('input', (e) => {
             const count = parseInt(e.target.value);
