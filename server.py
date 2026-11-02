@@ -49,9 +49,18 @@ JOBS = {}
 @app.get("/api/job-status")
 @app.get("/api/job-status/")
 async def job_status(job_id: str):
-    if job_id not in JOBS:
-        return JSONResponse(status_code=404, content={"error": "Job not found"})
-    return JOBS[job_id]
+    if LOCAL_WORKER_URL:
+        status_url = LOCAL_WORKER_URL.replace("/api/inpaint", "/api/job-status") + f"?job_id={job_id}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            try:
+                resp = await client.get(status_url, headers={"Bypass-Tunnel-Remind": "true"})
+                return JSONResponse(status_code=resp.status_code, content=resp.json())
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"error": f"Failed to poll local worker: {str(e)}"})
+    else:
+        if job_id not in JOBS:
+            return JSONResponse(status_code=404, content={"error": "Job not found"})
+        return JOBS[job_id]
 
 # SQLite Database & Auth Setup (Used on Render Cloud Controller)
 DB_PATH = "users.db"
