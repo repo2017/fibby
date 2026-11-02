@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.2 - Safe Canvas Resolution Scaling)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.3 - Mobile LocalStorage & Auth Safeguards)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -695,7 +695,12 @@
         const resultsGrid = document.getElementById('resultsGrid');
         const debugLog = document.getElementById('debugLog');
 
-        let authToken = localStorage.getItem('fibby_token') || '';
+        let authToken = '';
+        try {
+            authToken = localStorage.getItem('fibby_token') || '';
+        } catch (e) {
+            console.error('LocalStorage blocked or unavailable:', e);
+        }
         let userTokens = 100;
         let baseImage = new Image();
         let isDrawing = false;
@@ -972,9 +977,10 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+                const data = await response.json().catch(() => ({ error: 'Server returned invalid JSON response' }));
                 if (!response.ok) {
                     alert('Error: ' + (data.error || 'Unknown error'));
+                    logMessage('Error from server: ' + (data.error || 'Unknown error'));
                     loadingIndicator.style.display = 'none';
                     return;
                 }
