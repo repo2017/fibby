@@ -46,6 +46,30 @@ FIBBY_OUTPUTS_DIR = os.path.abspath("outputs")
 os.makedirs(FIBBY_OUTPUTS_DIR, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=FIBBY_OUTPUTS_DIR), name="outputs")
 
+def cleanup_old_images(days=3):
+    folders = [
+        FIBBY_OUTPUTS_DIR,
+        r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\outputs",
+        "temp_inputs"
+    ]
+    cutoff = time.time() - (days * 24 * 3600)
+    count = 0
+    for folder in folders:
+        if os.path.exists(folder):
+            for root, dirs, files in os.walk(folder):
+                for f in files:
+                    filepath = os.path.join(root, f)
+                    try:
+                        if os.path.getmtime(filepath) < cutoff:
+                            os.remove(filepath)
+                            count += 1
+                    except Exception as e:
+                        pass
+    if count > 0:
+        print(f"[Auto-Cleanup] Automatically removed {count} output files older than {days} days.")
+
+cleanup_old_images(days=3)
+
 # In-Memory Async Job Queue Store
 JOBS = {}
 
@@ -234,6 +258,7 @@ def extract_and_store_generated_images(start_time=None, count=2):
     return stored_urls
 
 async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count, brush_size):
+    cleanup_old_images(days=3)
     JOBS[job_id] = {"status": "processing"}
     browser = None
     try:
