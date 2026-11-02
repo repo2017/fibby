@@ -394,9 +394,10 @@ async def inpaint(
     canvas_width: float = Form(default=512),
     canvas_height: float = Form(default=512),
     image_count: int = Form(default=2),
-    brush_size: int = Form(default=35),
+    brush_size: float = Form(default=35),
     auth_token: str = Form(default="")
 ):
+    brush_size = int(round(brush_size))
     is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
 
     if is_render and not LOCAL_WORKER_URL:
