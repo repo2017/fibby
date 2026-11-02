@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.0 - Empirical Fooocus UI Ratio Calibration)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.1 - Aspect-Ratio-Aware Adaptive Brush Calibration)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -889,12 +889,25 @@
             };
         }
 
+        function getAdaptiveBrushWidth() {
+            const w = canvas.width || 1024;
+            const h = canvas.height || 1024;
+            const aspectRatio = w / h;
+            let baseProportion = 0.0586;
+            if (aspectRatio > 1.2) {
+                baseProportion = 0.0586 * Math.sqrt(aspectRatio);
+            } else if (aspectRatio < 0.8) {
+                baseProportion = 0.0586 * Math.sqrt(1 / aspectRatio);
+            }
+            return Math.max(10, Math.min(250, w * baseProportion));
+        }
+
         canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = canvas.width * 0.0586;
+            ctx.lineWidth = getAdaptiveBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -905,7 +918,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = canvas.width * 0.0586;
+            ctx.lineWidth = getAdaptiveBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -925,7 +938,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = canvas.width * 0.0586;
+            ctx.lineWidth = getAdaptiveBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -936,7 +949,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = canvas.width * 0.0586;
+            ctx.lineWidth = getAdaptiveBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
