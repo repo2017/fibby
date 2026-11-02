@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.7.0 - SDXL 1024px Normalization & Perfect 1:1 WYSIWYG)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.0 - Empirical Fooocus UI Ratio Calibration)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -889,18 +889,12 @@
             };
         }
 
-        function getDisplayBrushWidth() {
-            const rect = canvas.getBoundingClientRect();
-            const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
-            return constantBrushSize * (dispWidth / canvas.width);
-        }
-
         canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = getDisplayBrushWidth();
+            ctx.lineWidth = canvas.width * 0.0586;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -911,7 +905,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = getDisplayBrushWidth();
+            ctx.lineWidth = canvas.width * 0.0586;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -931,7 +925,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = getDisplayBrushWidth();
+            ctx.lineWidth = canvas.width * 0.0586;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -942,7 +936,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = getDisplayBrushWidth();
+            ctx.lineWidth = canvas.width * 0.0586;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
