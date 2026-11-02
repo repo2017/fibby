@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.1 - Perfect Screen-to-Bitmap Brush Scaling)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.2 - Safe Canvas Resolution Scaling)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -941,9 +941,10 @@
 
             const imageBlob = imageUpload.files[0];
 
-            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
-            const resolutionScale = canvas.width / dispWidth;
-            const effectiveBrushSize = brushSize * resolutionScale;
+            const rect = canvas.getBoundingClientRect();
+            const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
+            const resolutionScale = (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
+            const effectiveBrushSize = (typeof brushSize !== 'undefined' ? brushSize : 35) * resolutionScale;
 
             const formData = new FormData();
             formData.append('image', imageBlob, 'base.png');
