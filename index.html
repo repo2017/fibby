@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.1 - Precise 20% UI Brush Calibration)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.2 - Additional 20% UI Brush Calibration)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -868,7 +868,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize * getScaleX() * 0.8333;
+            ctx.lineWidth = brushSize * getScaleX() * 0.6666;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -879,7 +879,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize * getScaleX() * 0.8333;
+            ctx.lineWidth = brushSize * getScaleX() * 0.6666;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -899,7 +899,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize * getScaleX() * 0.8333;
+            ctx.lineWidth = brushSize * getScaleX() * 0.6666;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -910,7 +910,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize * getScaleX() * 0.8333;
+            ctx.lineWidth = brushSize * getScaleX() * 0.6666;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
