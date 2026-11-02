@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.1 - Aspect-Ratio-Aware Adaptive Brush Calibration)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.2 - 6.02% Empirical Fooocus Calibration)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -893,11 +893,11 @@
             const w = canvas.width || 1024;
             const h = canvas.height || 1024;
             const aspectRatio = w / h;
-            let baseProportion = 0.0586;
+            let baseProportion = 0.0602;
             if (aspectRatio > 1.2) {
-                baseProportion = 0.0586 * Math.sqrt(aspectRatio);
+                baseProportion = 0.0602 * Math.sqrt(aspectRatio);
             } else if (aspectRatio < 0.8) {
-                baseProportion = 0.0586 * Math.sqrt(1 / aspectRatio);
+                baseProportion = 0.0602 * Math.sqrt(1 / aspectRatio);
             }
             return Math.max(10, Math.min(250, w * baseProportion));
         }
