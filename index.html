@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.1 - Constant 35px Proportional Mask Sync)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.2 - Mobile File Upload Touch Fix)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -821,6 +821,15 @@
             timeEstimate.textContent = `⏱️ Estimated wait time: ~${mins} mins (~2 mins per picture) | Cost: ${cost} tokens (3 / picture)`;
             loadingText.textContent = `🪩 Generating ${count} AI Variations (~${mins} mins estimated)...`;
         });
+
+        const uploadBox = document.getElementById('uploadBox');
+        if (uploadBox) {
+            uploadBox.addEventListener('click', (e) => {
+                if (e.target !== imageUpload) {
+                    imageUpload.click();
+                }
+            });
+        }
 
         imageUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
