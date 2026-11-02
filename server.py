@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from PIL import Image, ImageDraw
 import shutil
 import os
 import glob
@@ -210,9 +211,47 @@ def extract_and_store_generated_images(start_time=None, count=2):
 
     return stored_urls
 
+def generate_mask_image(image_path, points, canvas_width, canvas_height, brush_size=35):
+    try:
+        img = Image.open(image_path)
+        mask = Image.new("L", img.size, 0) # Black
+        draw = ImageDraw.Draw(mask)
+
+        scale_w = img.width / float(canvas_width if canvas_width > 0 else 512)
+        scale_h = img.height / float(canvas_height if canvas_height > 0 else 512)
+        scaled_brush = int(brush_size * scale_w)
+
+        prev_pt = None
+        for pt in points:
+            pt_type = pt.get("type")
+            x = pt.get("x", 0) * scale_w
+            y = pt.get("y", 0) * scale_h
+            if pt_type == "down":
+                prev_pt = (x, y)
+                draw.ellipse([x - scaled_brush/2, y - scaled_brush/2, x + scaled_brush/2, y + scaled_brush/2], fill=255)
+            elif pt_type == "move" and prev_pt:
+                curr_pt = (x, y)
+                draw.line([prev_pt, curr_pt], fill=255, width=scaled_brush)
+                prev_pt = curr_pt
+            elif pt_type == "up":
+                prev_pt = None
+
+        if not points:
+            cx, cy = img.width / 2, img.height / 2
+            draw.ellipse([cx - 50, cy - 50, cx + 50, cy + 50], fill=255)
+
+        mask_path = image_path.replace(".png", "_mask.png")
+        mask.save(mask_path)
+        print(f"[Precision Mask] Generated mask at {mask_path} (size: {img.size})")
+        return mask_path
+    except Exception as e:
+        print("[Mask Generation Error]:", e)
+        return None
+
 async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count):
     JOBS[job_id] = {"status": "processing"}
     browser = None
+    mask_path = None
     try:
         from playwright.async_api import async_playwright
         print(f"[Job {job_id}] Launching browser...")
@@ -268,54 +307,19 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
             except Exception as ex:
                 print(f"[Job {job_id}] Advanced/Image Number setting error: {ex}")
 
-            print(f"[Job {job_id}] Uploading base image...")
+            print(f"[Job {job_id}] Uploading base image and precision Pillow mask...")
             inpaint_tab = page.locator("#component-70")
-            fi = inpaint_tab.locator("input[type='file']").first
-            await fi.set_input_files(image_path)
-            await fi.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
-            await asyncio.sleep(2)
+            file_inputs = await inpaint_tab.locator("input[type='file']").all()
 
-            canvas_el = inpaint_tab.locator("canvas").first
-            await canvas_el.scroll_into_view_if_needed()
-            await asyncio.sleep(1)
+            if len(file_inputs) >= 1:
+                await file_inputs[0].set_input_files(image_path)
+                await file_inputs[0].evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
 
-            print(f"[Job {job_id}] Replaying mask strokes...")
-            box = await canvas_el.bounding_box()
-            if box and points:
-                scale_x = box["width"] / float(canvas_width)
-                scale_y = box["height"] / float(canvas_height)
+            mask_path = generate_mask_image(image_path, points, canvas_width, canvas_height, brush_size=35)
+            if len(file_inputs) >= 2 and mask_path and os.path.exists(mask_path):
+                await file_inputs[1].set_input_files(mask_path)
+                await file_inputs[1].evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
 
-                for pt in points:
-                    pt_type = pt.get("type")
-                    if pt_type == "down":
-                        await page.mouse.move(box["x"] + pt["x"] * scale_x, box["y"] + pt["y"] * scale_y)
-                        await page.mouse.down()
-                    elif pt_type == "move":
-                        await page.mouse.move(box["x"] + pt["x"] * scale_x, box["y"] + pt["y"] * scale_y)
-                    elif pt_type == "up":
-                        await page.mouse.up()
-                try:
-                    await page.mouse.up()
-                except:
-                    pass
-            else:
-                if box:
-                    cx = box["x"] + box["width"] / 2
-                    cy = box["y"] + box["height"] / 2
-                    await page.mouse.move(cx - 80, cy - 80)
-                    await page.mouse.down()
-                    for r in range(10, 100, 15):
-                        for angle in range(0, 360, 20):
-                            import math
-                            mx = cx + r * math.cos(math.radians(angle))
-                            my = cy + r * math.sin(math.radians(angle))
-                            await page.mouse.move(mx, my)
-                    await page.mouse.up()
-
-            try:
-                await page.wait_for_selector("#component-70 img, .image-container img, img[src*='blob:']", timeout=15000)
-            except:
-                pass
             await asyncio.sleep(3)
 
             print(f"[Job {job_id}] Entering prompt: '{prompt}'...")
@@ -367,6 +371,11 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
         if os.path.exists(image_path):
             try:
                 os.remove(image_path)
+            except:
+                pass
+        if mask_path and os.path.exists(mask_path):
+            try:
+                os.remove(mask_path)
             except:
                 pass
 
