@@ -407,7 +407,7 @@
             opacity: 0.9;
         }
 
-        /* Loading */
+        /* Loading & Progress Bar */
         .loading-container {
             display: none;
             text-align: center;
@@ -420,13 +420,13 @@
         }
 
         .disco-spinner {
-            width: 55px;
-            height: 55px;
+            width: 50px;
+            height: 50px;
             border: 4px solid rgba(255, 0, 127, 0.2);
             border-top: 4px solid var(--pink-neon);
             border-right: 4px solid var(--purple-neon);
             border-radius: 50%;
-            margin: 0 auto 18px auto;
+            margin: 0 auto 15px auto;
             animation: spin 0.9s linear infinite;
         }
 
@@ -436,10 +436,30 @@
         }
 
         .loading-text {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             font-weight: 700;
             color: var(--pink-glow);
             text-shadow: 0 0 12px rgba(255,0,127,0.6);
+            margin-bottom: 15px;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 0, 127, 0.3);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--pink-neon), var(--purple-neon));
+            border-radius: 10px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 15px var(--pink-neon);
         }
 
         /* Results Gallery Grid */
@@ -561,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.6 - Clean URLs & Sanitization)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.7 - Progress Bar & Tunnel Watchdog)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -625,11 +645,14 @@
             <!-- Generate Button -->
             <button class="btn-glow" id="generateBtn">✨ Generate 2 Fancy Variations (6 Tokens) ✨</button>
 
-            <!-- Loading Indicator -->
+            <!-- Loading Indicator & Progress Bar -->
             <div class="loading-container" id="loadingIndicator">
                 <div class="disco-spinner"></div>
-                <p class="loading-text" id="loadingText">🪩 Fibby is generating 2 AI Variations (~4 mins estimated, ~2 mins per picture)...</p>
-                <p style="font-size: 0.9rem; color: var(--gray-light); margin-top: 8px;">Automating Playwright, replaying exact mask strokes, rendering SDXL variations</p>
+                <p class="loading-text" id="loadingText">🪩 Generating 2 AI Variations (~4 mins estimated)...</p>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--gray-light); margin-top: 12px;" id="progressTimeText">Elapsed: 0s | Estimated remaining: ~4 mins</p>
             </div>
 
             <!-- Terminal Log -->
@@ -666,6 +689,8 @@
         const generateBtn = document.getElementById('generateBtn');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const loadingText = document.getElementById('loadingText');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressTimeText = document.getElementById('progressTimeText');
         const resultContainer = document.getElementById('result-container');
         const resultsGrid = document.getElementById('resultsGrid');
         const debugLog = document.getElementById('debugLog');
@@ -778,7 +803,7 @@
             imageCountVal.textContent = count + ' Images';
             generateBtn.textContent = `✨ Generate ${count} Fancy Variations (${cost} Tokens) ✨`;
             timeEstimate.textContent = `⏱️ Estimated wait time: ~${mins} mins (~2 mins per picture) | Cost: ${cost} tokens (3 / picture)`;
-            loadingText.textContent = `🪩 Fibby is generating ${count} AI Variations (~${mins} mins estimated, ~2 mins per picture)...`;
+            loadingText.textContent = `🪩 Generating ${count} AI Variations (~${mins} mins estimated)...`;
         });
 
         imageUpload.addEventListener('change', (e) => {
@@ -922,6 +947,12 @@
             debugLog.innerHTML = '';
             logMessage(`Starting Fibby job: generating ${imageCount} variations (cost: ${cost} tokens)...`);
 
+            // Reset progress bar
+            progressBarFill.style.width = '2%';
+            let elapsedSeconds = 0;
+            const totalSeconds = imageCount * 120; // 2 mins per picture
+            progressTimeText.textContent = `Elapsed: 0s | Estimated remaining: ~${Math.ceil(totalSeconds / 60)} mins`;
+
             try {
                 const response = await fetch('/api/inpaint', {
                     method: 'POST',
@@ -949,12 +980,21 @@
                 logMessage(`Job dispatched successfully! Job ID: ${jobId}. Polling for completion...`);
 
                 const pollInterval = setInterval(async () => {
+                    elapsedSeconds += 4;
+                    const percent = Math.min(95, Math.floor((elapsedSeconds / totalSeconds) * 95));
+                    progressBarFill.style.width = percent + '%';
+
+                    const remainingSecs = Math.max(10, totalSeconds - elapsedSeconds);
+                    const remainingMins = Math.ceil(remainingSecs / 60);
+                    progressTimeText.textContent = `Elapsed: ${elapsedSeconds}s | Estimated remaining: ~${remainingMins} mins`;
+
                     try {
                         const statusRes = await fetch(`/api/job-status?job_id=${jobId}`);
                         const statusData = await statusRes.json();
 
                         if (statusData.status === 'completed') {
                             clearInterval(pollInterval);
+                            progressBarFill.style.width = '100%';
                             loadingIndicator.style.display = 'none';
 
                             const images = (statusData.result || []).filter(item => typeof item === 'string' && item.length > 0);
