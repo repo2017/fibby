@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.4 - Automated 3-Day Disk Cleanup)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.5 - Dynamic Ratio-Based WYSIWYG Sync)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -966,8 +966,6 @@
 
             const rect = canvas.getBoundingClientRect();
             const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
-            const resolutionScale = (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
-            const effectiveBrushSize = (typeof brushSize !== 'undefined' ? brushSize : 35) * resolutionScale;
 
             const formData = new FormData();
             formData.append('image', imageBlob, 'base.png');
@@ -975,8 +973,9 @@
             formData.append('mask_points', JSON.stringify(drawnPoints));
             formData.append('canvas_width', canvas.width);
             formData.append('canvas_height', canvas.height);
+            formData.append('disp_width', dispWidth);
             formData.append('image_count', imageCount);
-            formData.append('brush_size', effectiveBrushSize);
+            formData.append('brush_size', brushSize);
             formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';

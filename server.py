@@ -257,7 +257,7 @@ def extract_and_store_generated_images(start_time=None, count=2):
 
     return stored_urls
 
-async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count, brush_size):
+async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size):
     cleanup_old_images(days=3)
     JOBS[job_id] = {"status": "processing"}
     browser = None
@@ -323,25 +323,28 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
             await fi.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
             await asyncio.sleep(2)
 
-            print(f"[Job {job_id}] Setting Fooocus brush width to {brush_size}...")
+            canvas_el = inpaint_tab.locator("canvas").first
+            await canvas_el.scroll_into_view_if_needed()
+            await asyncio.sleep(1)
+
+            box = await canvas_el.bounding_box()
+            fooocus_canvas_w = box["width"] if (box and "width" in box and box["width"] > 0) else 512.0
+            exact_fooocus_brush = max(5, int(round(brush_size * (fooocus_canvas_w / float(disp_width if disp_width > 0 else 350.0)))))
+
+            print(f"[Job {job_id}] Setting Fooocus brush width to exact ratio: {exact_fooocus_brush} (brush_size={brush_size}, fooocus_w={fooocus_canvas_w}, disp_w={disp_width})...")
             try:
                 for inp in await page.locator("input[type='range'], input[type='number']").all():
                     p_text = await inp.evaluate("el => el.closest('.component, .form, div')?.innerText || ''")
                     if "Brush width" in p_text or "brush" in p_text.lower():
                         await inp.click()
-                        await inp.fill(str(brush_size))
+                        await inp.fill(str(exact_fooocus_brush))
                         await inp.press("Enter")
                         await inp.evaluate("el => { el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('input', { bubbles: true })); }")
                         break
             except Exception as ex:
                 print(f"[Job {job_id}] Brush width setting warning: {ex}")
 
-            canvas_el = inpaint_tab.locator("canvas").first
-            await canvas_el.scroll_into_view_if_needed()
-            await asyncio.sleep(1)
-
-            print(f"[Job {job_id}] Replaying mask strokes with exact brush size...")
-            box = await canvas_el.bounding_box()
+            print(f"[Job {job_id}] Replaying mask strokes...")
             if box and points:
                 scale_x = box["width"] / float(canvas_width)
                 scale_y = box["height"] / float(canvas_height)
@@ -359,19 +362,6 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
                     await page.mouse.up()
                 except:
                     pass
-            else:
-                if box:
-                    cx = box["x"] + box["width"] / 2
-                    cy = box["y"] + box["height"] / 2
-                    await page.mouse.move(cx - 80, cy - 80)
-                    await page.mouse.down()
-                    for r in range(10, 100, 15):
-                        for angle in range(0, 360, 20):
-                            import math
-                            mx = cx + r * math.cos(math.radians(angle))
-                            my = cy + r * math.sin(math.radians(angle))
-                            await page.mouse.move(mx, my)
-                    await page.mouse.up()
 
             try:
                 await page.wait_for_selector("#component-70 img, .image-container img, img[src*='blob:']", timeout=15000)
@@ -441,6 +431,7 @@ async def inpaint(
     mask_points: str = Form(default="[]"),
     canvas_width: float = Form(default=512),
     canvas_height: float = Form(default=512),
+    disp_width: float = Form(default=350),
     image_count: int = Form(default=2),
     brush_size: float = Form(default=35),
     auth_token: str = Form(default="")
@@ -487,6 +478,7 @@ async def inpaint(
             "mask_points": mask_points,
             "canvas_width": str(canvas_width),
             "canvas_height": str(canvas_height),
+            "disp_width": str(disp_width),
             "image_count": str(image_count),
             "brush_size": str(brush_size)
         }
@@ -517,7 +509,7 @@ async def inpaint(
 
     job_id = secrets.token_hex(16)
     asyncio.create_task(process_inpaint_job(
-        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, image_count, brush_size
+        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size
     ))
 
     return {"job_id": job_id, "status": "processing"}
