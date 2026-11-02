@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.0 - Interactive Brush Size Slider & 15px Default)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.6.1 - Constant 35px Proportional Mask Sync)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -626,11 +626,6 @@
                     <canvas id="imageCanvas"></canvas>
                 </div>
                 <div class="controls">
-                    <div style="display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 12px; flex-wrap: wrap;">
-                        <span style="font-size: 15px; font-weight: 600;">🖌️ Brush Thickness:</span>
-                        <input type="range" id="brushSizeInput" min="5" max="60" value="15" style="width: 180px;">
-                        <span class="brush-val-badge" id="brushValBadge">15px</span>
-                    </div>
                     <div style="display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap;">
                         <span style="font-size: 15px; font-weight: 600;">🖼️ Number of Images (2-6):</span>
                         <input type="range" id="imageCount" min="2" max="6" value="2" style="width: 180px;">
@@ -872,10 +867,12 @@
             };
         }
 
-        function getScaleX() {
+        const constantBrushSize = 35;
+
+        function getDisplayBrushWidth() {
             const rect = canvas.getBoundingClientRect();
             const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
-            return (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
+            return constantBrushSize * (dispWidth / canvas.width);
         }
 
         canvas.addEventListener('mousedown', (e) => {
@@ -883,7 +880,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize * getScaleX() * 0.5333;
+            ctx.lineWidth = getDisplayBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -894,7 +891,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize * getScaleX() * 0.5333;
+            ctx.lineWidth = getDisplayBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -914,7 +911,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize * getScaleX() * 0.5333;
+            ctx.lineWidth = getDisplayBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -925,7 +922,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize * getScaleX() * 0.5333;
+            ctx.lineWidth = getDisplayBrushWidth();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -990,7 +987,7 @@
             formData.append('canvas_height', canvas.height);
             formData.append('disp_width', dispWidth);
             formData.append('image_count', imageCount);
-            formData.append('brush_size', brushSize);
+            formData.append('brush_size', constantBrushSize);
             formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';
