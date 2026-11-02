@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.8 - Precision Pillow Mask Upload)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.3.9 - Precise Brush Size Sync)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -940,6 +940,7 @@
             formData.append('canvas_width', canvas.width);
             formData.append('canvas_height', canvas.height);
             formData.append('image_count', imageCount);
+            formData.append('brush_size', brushSize);
             formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';
