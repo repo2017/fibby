@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.9 - Proportional High-Res Brush Scaling)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.5.0 - True WYSIWYG Proportional Brush Scaling)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -857,12 +857,18 @@
             };
         }
 
+        function getScaleX() {
+            const rect = canvas.getBoundingClientRect();
+            const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
+            return (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
+        }
+
         canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize;
+            ctx.lineWidth = brushSize * getScaleX();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -873,7 +879,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize;
+            ctx.lineWidth = brushSize * getScaleX();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -893,8 +899,8 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            ctx.lineWidth = brushSize;
-            ctx.lineCap, 'round';
+            ctx.lineWidth = brushSize * getScaleX();
+            ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
             drawnPoints.push({x: pos.x, y: pos.y, type: 'down'});
@@ -904,7 +910,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            ctx.lineWidth = brushSize;
+            ctx.lineWidth = brushSize * getScaleX();
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
