@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.5 - Fix 422 Validation Error for Brush Size)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.4.6 - Precise Brush Size & Blob Downloader)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -701,6 +701,7 @@
         } catch (e) {
             console.error('LocalStorage blocked or unavailable:', e);
         }
+
         let userTokens = 100;
         let baseImage = new Image();
         let isDrawing = false;
@@ -861,9 +862,7 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
-            const resolutionScale = canvas.width / dispWidth;
-            ctx.lineWidth = brushSize * resolutionScale;
+            ctx.lineWidth = brushSize;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
@@ -874,9 +873,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
-            const resolutionScale = canvas.width / dispWidth;
-            ctx.lineWidth = brushSize * resolutionScale;
+            ctx.lineWidth = brushSize;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -896,10 +893,8 @@
             isDrawing = true;
             const pos = getMousePos(e);
             ctx.beginPath();
-            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
-            const resolutionScale = canvas.width / dispWidth;
-            ctx.lineWidth = brushSize * resolutionScale;
-            ctx.lineCap = 'round';
+            ctx.lineWidth = brushSize;
+            ctx.lineCap, 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.moveTo(pos.x, pos.y);
             drawnPoints.push({x: pos.x, y: pos.y, type: 'down'});
@@ -909,9 +904,7 @@
             e.preventDefault();
             if (!isDrawing) return;
             const pos = getMousePos(e);
-            const dispWidth = canvas.getBoundingClientRect().width || canvas.width;
-            const resolutionScale = canvas.width / dispWidth;
-            ctx.lineWidth = brushSize * resolutionScale;
+            ctx.lineWidth = brushSize;
             ctx.lineCap = 'round';
             ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
             ctx.lineTo(pos.x, pos.y);
@@ -925,6 +918,25 @@
                 drawnPoints.push({type: 'up'});
             }
         });
+
+        async function downloadImage(url, filename) {
+            try {
+                logMessage(`Downloading ${filename}...`);
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (e) {
+                console.error('Download fetch failed, opening in new tab:', e);
+                window.open(url, '_blank');
+            }
+        }
 
         generateBtn.addEventListener('click', async () => {
             if (!imageUpload.files[0]) {
@@ -946,11 +958,6 @@
 
             const imageBlob = imageUpload.files[0];
 
-            const rect = canvas.getBoundingClientRect();
-            const dispWidth = (rect && rect.width > 0) ? rect.width : canvas.width;
-            const resolutionScale = (dispWidth > 0 && canvas.width > 0) ? (canvas.width / dispWidth) : 1;
-            const effectiveBrushSize = (typeof brushSize !== 'undefined' ? brushSize : 35) * resolutionScale;
-
             const formData = new FormData();
             formData.append('image', imageBlob, 'base.png');
             formData.append('prompt', prompt);
@@ -958,7 +965,7 @@
             formData.append('canvas_width', canvas.width);
             formData.append('canvas_height', canvas.height);
             formData.append('image_count', imageCount);
-            formData.append('brush_size', effectiveBrushSize);
+            formData.append('brush_size', brushSize);
             formData.append('auth_token', authToken);
 
             loadingIndicator.style.display = 'block';
@@ -1040,7 +1047,7 @@
                                 card.innerHTML = `
                                     <span class="card-badge">Option ${index + 1}</span>
                                     <img src="${imgUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
-                                    <a href="${imgUrl}" class="btn-download" download="fibby_result_${index + 1}.png" target="_blank">⬇️ Download Image ${index + 1}</a>
+                                    <button class="btn-download" onclick="downloadImage('${imgUrl}', 'fibby_result_${index + 1}.png')">⬇️ Download Image ${index + 1}</button>
                                 `;
                                 resultsGrid.appendChild(card);
                             });
