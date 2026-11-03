@@ -210,21 +210,8 @@ def extract_and_store_generated_images(start_time=None, count=2):
     found_paths = []
     seen_filenames = set()
 
-    temp_dir = r"C:\Users\nstra\AppData\Local\Temp\fooocus"
-    if os.path.exists(temp_dir):
-        subdirs = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
-        subdirs.sort(key=os.path.getmtime, reverse=True)
-
-        target_subdirs = subdirs[:max(count * 2, 6)]
-        for sd in target_subdirs:
-            pngs = glob.glob(os.path.join(sd, "*.png"))
-            if pngs:
-                pngs.sort(key=os.path.getctime, reverse=True)
-                p = pngs[0]
-                fname = os.path.basename(p)
-                if fname not in seen_filenames and os.path.getsize(p) > 50000:
-                    seen_filenames.add(fname)
-                    found_paths.append((os.path.getctime(p), p))
+    if start_time is None:
+        start_time = time.time() - 900
 
     out_dir = r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\outputs"
     if os.path.exists(out_dir):
@@ -233,14 +220,29 @@ def extract_and_store_generated_images(start_time=None, count=2):
             try:
                 ctime = os.path.getctime(p)
                 fname = os.path.basename(p)
-                if fname not in seen_filenames and os.path.getsize(p) > 50000:
+                if ctime >= (start_time - 5.0) and fname not in seen_filenames and os.path.getsize(p) > 50000:
                     seen_filenames.add(fname)
                     found_paths.append((ctime, p))
             except:
                 pass
 
+    temp_dir = r"C:\Users\nstra\AppData\Local\Temp\fooocus"
+    if os.path.exists(temp_dir):
+        subdirs = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
+        for sd in subdirs:
+            pngs = glob.glob(os.path.join(sd, "*.png"))
+            for p in pngs:
+                try:
+                    ctime = os.path.getctime(p)
+                    fname = os.path.basename(p)
+                    if ctime >= (start_time - 5.0) and fname not in seen_filenames and os.path.getsize(p) > 50000:
+                        seen_filenames.add(fname)
+                        found_paths.append((ctime, p))
+                except:
+                    pass
+
     found_paths.sort(key=lambda x: x[0])
-    if len(found_paths) > count:
+    if len(found_paths) >= count:
         found_paths = found_paths[-count:]
 
     stored_urls = []
@@ -250,10 +252,7 @@ def extract_and_store_generated_images(start_time=None, count=2):
         shutil.copy2(pth, dest_path)
         url = f"/api/outputs/{dest_filename}"
         stored_urls.append(url)
-        print(f"[Fibby Storage] Stored {pth} -> {dest_path} ({url})")
-
-    while len(stored_urls) < count and len(stored_urls) > 0:
-        stored_urls.append(stored_urls[0])
+        print(f"[Fibby Storage] Stored new output {pth} -> {dest_path} ({url})")
 
     return stored_urls
 
