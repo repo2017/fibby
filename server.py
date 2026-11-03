@@ -391,18 +391,23 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
             print(f"[Job {job_id}] Clicking Generate button...")
             await page.locator("#generate_button").click(force=True)
 
-            try:
-                await page.wait_for_selector("#stop_button", state="visible", timeout=20000)
-            except:
-                pass
+            print(f"[Job {job_id}] Waiting for generation to complete (polling output files)...")
+            max_wait = 600
+            waited = 0
+            stored_urls = []
+            while waited < max_wait:
+                await asyncio.sleep(5)
+                waited += 5
+                try:
+                    stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count)
+                    if stored_urls and len(stored_urls) >= image_count:
+                        print(f"[Job {job_id}] Detected {len(stored_urls)} generated output images!")
+                        break
+                except Exception as ex:
+                    print(f"[Job {job_id}] Polling outputs warning: {ex}")
 
-            await page.wait_for_selector("#stop_button", state="hidden", timeout=600000)
-            print(f"[Job {job_id}] Generation completed! Storing output...")
-            await asyncio.sleep(3)
-
-            stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count)
             if not stored_urls or len(stored_urls) == 0:
-                raise Exception("No generated output images found.")
+                raise Exception("Generation timed out or no output images were produced.")
 
             JOBS[job_id] = {"status": "completed", "result": stored_urls}
             await browser.close()
