@@ -106,7 +106,24 @@ async def job_status(job_id: str):
 
 @app.get("/api/outputs/{filename}")
 @app.get("/api/outputs/{filename}/")
-async def proxy_output(filename: str):
+async def proxy_output(filename: str, token: str = None):
+    # Secure Token-Gated Image Access Control
+    if token:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM sessions WHERE token = ?", (token,))
+        s_row = cursor.fetchone()
+        conn.close()
+        if s_row:
+            user_email = s_row[0]
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT email FROM image_owners WHERE filename = ?", (filename,))
+            o_row = cursor.fetchone()
+            conn.close()
+            if o_row and o_row[0] != user_email:
+                return JSONResponse(status_code=403, content={"error": "Access denied. You do not own this image."})
+
     active_worker = get_active_worker_url()
     if active_worker:
         worker_outputs_url = active_worker.replace("/api/inpaint", f"/outputs/{filename}")
@@ -145,6 +162,12 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY,
+            email TEXT NOT NULL
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS image_owners (
+            filename TEXT PRIMARY KEY,
             email TEXT NOT NULL
         )
     ''')
@@ -222,7 +245,7 @@ async def me(token: str = None):
         return JSONResponse(status_code=404, content={"error": "User not found"})
     return {"email": email, "tokens": u_row[0]}
 
-def extract_and_store_generated_images(start_time=None, count=2):
+def extract_and_store_generated_images(start_time=None, count=2, owner_email=None):
     found_paths = []
     seen_filenames = set()
 
@@ -266,13 +289,21 @@ def extract_and_store_generated_images(start_time=None, count=2):
         dest_filename = f"{int(ctime)}_{os.path.basename(pth)}"
         dest_path = os.path.join(FIBBY_OUTPUTS_DIR, dest_filename)
         shutil.copy2(pth, dest_path)
+
+        if owner_email:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("REPLACE INTO image_owners (filename, email) VALUES (?, ?)", (dest_filename, owner_email))
+            conn.commit()
+            conn.close()
+
         url = f"/api/outputs/{dest_filename}"
         stored_urls.append(url)
-        print(f"[Fibby Storage] Stored new output {pth} -> {dest_path} ({url})")
+        print(f"[Fibby Storage] Stored new output {pth} -> {dest_path} ({url}) for owner {owner_email}")
 
     return stored_urls
 
-async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size):
+async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size, owner_email):
     cleanup_old_images(days=3)
     JOBS[job_id] = {"status": "processing"}
     browser = None
@@ -346,7 +377,7 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
             fooocus_canvas_w = box["width"] if (box and "width" in box and box["width"] > 0) else 512.0
             exact_fooocus_brush = max(5, int(round(brush_size * (fooocus_canvas_w / float(disp_width if disp_width > 0 else 350.0)))))
 
-            print(f"[Job {job_id}] Setting Fooocus brush width to exact ratio: {exact_fooocus_brush} (brush_size={brush_size}, fooocus_w={fooocus_canvas_w}, disp_w={disp_width})...")
+            print(f"[Job {job_id}] Setting Fooocus brush width to exact ratio: {exact_fooocus_brush}...")
             try:
                 for inp in await page.locator("input[type='range'], input[type='number']").all():
                     p_text = await inp.evaluate("el => el.closest('.component, .form, div')?.innerText || ''")
@@ -414,7 +445,7 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
                 await asyncio.sleep(5)
                 waited += 5
                 try:
-                    stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count)
+                    stored_urls = extract_and_store_generated_images(start_time=start_time, count=image_count, owner_email=owner_email)
                     if stored_urls and len(stored_urls) >= image_count:
                         print(f"[Job {job_id}] Detected {len(stored_urls)} generated output images!")
                         break
@@ -457,27 +488,28 @@ async def inpaint(
     auth_token: str = Form(default="")
 ):
     brush_size = int(round(brush_size))
-    active_worker = get_active_worker_url()
     is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
 
+    active_worker = get_active_worker_url()
     if is_render and not active_worker:
         return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
 
-    # 1. Render Cloud Controller mode
+    # 1. Authenticate user and get email
+    if not auth_token:
+        return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
+    s_row = cursor.fetchone()
+    if not s_row:
+        conn.close()
+        return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
+    email = s_row[0]
+
+    # If running on Render (Cloud Controller mode):
     if active_worker:
         token_cost = image_count * 3
-        if not auth_token:
-            return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
-        s_row = cursor.fetchone()
-        if not s_row:
-            conn.close()
-            return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
-        email = s_row[0]
-
         cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
         u_row = cursor.fetchone()
         if not u_row or u_row[0] < token_cost:
@@ -501,7 +533,8 @@ async def inpaint(
             "canvas_height": str(canvas_height),
             "disp_width": str(disp_width),
             "image_count": str(image_count),
-            "brush_size": str(brush_size)
+            "brush_size": str(brush_size),
+            "owner_email": email
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
@@ -516,6 +549,19 @@ async def inpaint(
                 return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
 
     # 2. Local GPU Worker mode: Start job asynchronously and return job_id immediately
+    token_cost = image_count * 3
+    cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
+    u_row = cursor.fetchone()
+    if not u_row or u_row[0] < token_cost:
+        conn.close()
+        return JSONResponse(status_code=400, content={"error": f"Insufficient tokens! Required: {token_cost} tokens, Available: {u_row[0] if u_row else 0}."})
+
+    current_tokens = u_row[0]
+    new_tokens = current_tokens - token_cost
+    cursor.execute("UPDATE users SET tokens = ? WHERE email = ?", (new_tokens, email))
+    conn.commit()
+    conn.close()
+
     temp_dir = "temp_inputs"
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -529,11 +575,12 @@ async def inpaint(
         points = []
 
     job_id = secrets.token_hex(16)
+    owner_email = email
     asyncio.create_task(process_inpaint_job(
-        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size
+        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size, owner_email
     ))
 
-    return {"job_id": job_id, "status": "processing"}
+    return {"job_id": job_id, "status": "processing", "tokens_remaining": new_tokens}
 
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
 

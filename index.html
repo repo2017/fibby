@@ -581,7 +581,7 @@
         <header>
             <div class="title-badge">🪩 Disco Night Edition</div>
             <h1>FIBBY STUDIO</h1>
-            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.8.4 - Strict Timestamp Output Filtering)</p>
+            <p class="subtitle">Fancy AI Inpainting & Image Modifications (v1.9.0 - Secure Token-Gated Image Access Control)</p>
         </header>
 
         <!-- Auth Bar -->
@@ -1097,12 +1097,13 @@
 
                                 resultsGrid.innerHTML = '';
                                 images.forEach((imgUrl, index) => {
+                                    const secureUrl = `${imgUrl}?token=${authToken}`;
                                     const card = document.createElement('div');
                                     card.className = 'result-card';
                                     card.innerHTML = `
                                         <span class="card-badge">Option ${index + 1}</span>
-                                        <img src="${imgUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
-                                        <button class="btn-download" onclick="downloadImage('${imgUrl}', 'fibby_result_${index + 1}.png')">⬇️ Download Image ${index + 1}</button>
+                                        <img src="${secureUrl}" class="result-img" alt="Variation ${index + 1}" onclick="window.open(this.src, '_blank')">
+                                        <button class="btn-download" onclick="downloadImage('${secureUrl}', 'fibby_result_${index + 1}.png')">⬇️ Download Image ${index + 1}</button>
                                     `;
                                     resultsGrid.appendChild(card);
                                 });
