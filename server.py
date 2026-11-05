@@ -35,9 +35,23 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
-LOCAL_WORKER_URL = os.environ.get("LOCAL_WORKER_URL")
-if LOCAL_WORKER_URL:
-    LOCAL_WORKER_URL = LOCAL_WORKER_URL.strip().replace("%20", "").strip()
+_DYNAMIC_WORKER_URL = os.environ.get("LOCAL_WORKER_URL", "").strip().replace("%20", "").strip()
+
+@app.post("/api/update-worker-url")
+@app.post("/api/update-worker-url/")
+async def update_worker_url(data: dict):
+    global _DYNAMIC_WORKER_URL
+    secret = data.get("secret", "")
+    url = data.get("url", "")
+    if secret != "fibby_secret_123":
+        return JSONResponse(status_code=403, content={"error": "Unauthorized"})
+    if url:
+        _DYNAMIC_WORKER_URL = url.strip().replace("%20", "").strip()
+        print(f"[Cloud Controller] Dynamically updated active worker URL to: {_DYNAMIC_WORKER_URL}")
+    return {"success": True, "active_worker_url": _DYNAMIC_WORKER_URL}
+
+def get_active_worker_url():
+    return _DYNAMIC_WORKER_URL or os.environ.get("LOCAL_WORKER_URL", "").strip().replace("%20", "").strip()
 
 PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "http://127.0.0.1:8000").strip().replace("%20", "").strip()
 
@@ -76,8 +90,9 @@ JOBS = {}
 @app.get("/api/job-status")
 @app.get("/api/job-status/")
 async def job_status(job_id: str):
-    if LOCAL_WORKER_URL:
-        status_url = LOCAL_WORKER_URL.replace("/api/inpaint", "/api/job-status") + f"?job_id={job_id}"
+    active_worker = get_active_worker_url()
+    if active_worker:
+        status_url = active_worker.replace("/api/inpaint", "/api/job-status") + f"?job_id={job_id}"
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 resp = await client.get(status_url, headers={"Bypass-Tunnel-Remind": "true"})
@@ -92,8 +107,9 @@ async def job_status(job_id: str):
 @app.get("/api/outputs/{filename}")
 @app.get("/api/outputs/{filename}/")
 async def proxy_output(filename: str):
-    if LOCAL_WORKER_URL:
-        worker_outputs_url = LOCAL_WORKER_URL.replace("/api/inpaint", f"/outputs/{filename}")
+    active_worker = get_active_worker_url()
+    if active_worker:
+        worker_outputs_url = active_worker.replace("/api/inpaint", f"/outputs/{filename}")
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 resp = await client.get(worker_outputs_url, headers={"Bypass-Tunnel-Remind": "true"})
@@ -441,13 +457,14 @@ async def inpaint(
     auth_token: str = Form(default="")
 ):
     brush_size = int(round(brush_size))
+    active_worker = get_active_worker_url()
     is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
 
-    if is_render and not LOCAL_WORKER_URL:
+    if is_render and not active_worker:
         return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
 
     # 1. Render Cloud Controller mode
-    if LOCAL_WORKER_URL:
+    if active_worker:
         token_cost = image_count * 3
         if not auth_token:
             return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
@@ -473,7 +490,7 @@ async def inpaint(
         conn.commit()
         conn.close()
 
-        print(f"[Cloud Controller] Dispatching async job to local worker: {LOCAL_WORKER_URL}")
+        print(f"[Cloud Controller] Dispatching async job to local worker: {active_worker}")
         img_bytes = await image.read()
         files = {"image": (image.filename, img_bytes, image.content_type or "image/png")}
         data = {
@@ -488,7 +505,7 @@ async def inpaint(
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                resp = await client.post(LOCAL_WORKER_URL, files=files, data=data, headers={"Bypass-Tunnel-Remind": "true"})
+                resp = await client.post(active_worker, files=files, data=data, headers={"Bypass-Tunnel-Remind": "true"})
                 if resp.status_code == 200:
                     res_json = resp.json()
                     res_json["tokens_remaining"] = new_tokens

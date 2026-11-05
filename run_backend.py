@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import re
+import requests
 
 print("==================================================")
 print("     Fibby Studio All-In-One Unified Server       ")
@@ -19,8 +20,8 @@ fooocus_proc = subprocess.Popen([
 
 time.sleep(5)
 
-# 2. Start Cloudflare Tunnel and capture URL dynamically
-print("[2/3] Launching Cloudflare Tunnel...")
+# 2. Start Cloudflare Tunnel and capture URL dynamically & auto-report to Render
+print("[2/3] Launching Cloudflare Tunnel & Auto-Reporting URL...")
 tunnel_proc = subprocess.Popen(
     [r"C:\ai\focusclient\cloudflared.exe", "tunnel", "--url", "http://127.0.0.1:8000"],
     stdout=subprocess.PIPE,
@@ -37,14 +38,25 @@ def monitor_tunnel():
         match = re.search(r"https://[a-zA-Z0-9\-]+\.trycloudflare\.com", line)
         if match and not tunnel_url:
             tunnel_url = match.group(0)
+            api_url = f"{tunnel_url}/api/inpaint"
             os.environ["PUBLIC_WORKER_URL"] = tunnel_url
             with open("active_tunnel_url.txt", "w") as f:
-                f.write(f"{tunnel_url}/api/inpaint")
+                f.write(api_url)
+
             print(f"\n==================================================")
             print(f"  ACTIVE CLOUDFLARE URL: {tunnel_url}")
-            print(f"  Update Render LOCAL_WORKER_URL to:")
-            print(f"  {tunnel_url}/api/inpaint")
+            print(f"  Auto-reporting to Render Cloud Controller...")
             print(f"==================================================\n")
+
+            # Auto-report to Render cloud controller
+            try:
+                resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
+                    "secret": "fibby_secret_123",
+                    "url": api_url
+                }, timeout=15)
+                print(f"[Auto-Report] Render response: {resp.status_code} {resp.text}")
+            except Exception as ex:
+                print(f"[Auto-Report Error]: {ex}")
 
 t = threading.Thread(target=monitor_tunnel, daemon=True)
 t.start()
