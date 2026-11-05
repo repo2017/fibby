@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -475,6 +475,7 @@ async def process_inpaint_job(job_id, image_path, prompt, negative_prompt, point
 @app.post("/api/inpaint")
 @app.post("/api/inpaint/")
 async def inpaint(
+    request: Request,
     image: UploadFile = File(...),
     mask: UploadFile = File(default=None),
     prompt: str = Form(...),
@@ -485,12 +486,19 @@ async def inpaint(
     disp_width: float = Form(default=350),
     image_count: int = Form(default=2),
     brush_size: float = Form(default=35),
+    owner_email: str = Form(default=""),
     auth_token: str = Form(default="")
 ):
     brush_size = int(round(brush_size))
     is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
-
     active_worker = get_active_worker_url()
+
+    # If running locally (worker mode), enforce secret header check to prevent public GPU hijacking!
+    if not is_render:
+        secret_header = request.headers.get("x-fibby-secret", "")
+        if secret_header != "fibby_secret_123":
+            return JSONResponse(status_code=403, content={"error": "Forbidden. Unauthorized direct access to local GPU worker."})
+
     if is_render and not active_worker:
         return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
 
@@ -538,7 +546,15 @@ async def inpaint(
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                resp = await client.post(active_worker, files=files, data=data, headers={"Bypass-Tunnel-Remind": "true"})
+                resp = await client.post(
+                    active_worker,
+                    files=files,
+                    data=data,
+                    headers={
+                        "Bypass-Tunnel-Remind": "true",
+                        "X-Fibby-Secret": "fibby_secret_123"
+                    }
+                )
                 if resp.status_code == 200:
                     res_json = resp.json()
                     res_json["tokens_remaining"] = new_tokens
