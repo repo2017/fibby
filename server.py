@@ -114,7 +114,7 @@ async def job_status(job_id: str):
         status_url = active_worker.replace("/api/inpaint", "/api/job-status") + f"?job_id={job_id}"
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                resp = await client.get(status_url, headers={"Bypass-Tunnel-Remind": "true"})
+                resp = await client.get(status_url, headers={"Bypass-Tunnel-Remind": "true", "X-Fibby-Secret": "fibby_secret_123"})
                 return JSONResponse(status_code=resp.status_code, content=resp.json())
             except Exception as e:
                 return JSONResponse(status_code=500, content={"error": f"Failed to poll local worker: {str(e)}"})
@@ -148,7 +148,7 @@ async def proxy_output(filename: str, token: str = None):
         worker_outputs_url = active_worker.replace("/api/inpaint", f"/outputs/{filename}")
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                resp = await client.get(worker_outputs_url, headers={"Bypass-Tunnel-Remind": "true"})
+                resp = await client.get(worker_outputs_url, headers={"Bypass-Tunnel-Remind": "true", "X-Fibby-Secret": "fibby_secret_123"})
                 if resp.status_code == 200:
                     from fastapi.responses import Response
                     content_type = resp.headers.get("content-type", "image/png")

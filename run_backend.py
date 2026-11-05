@@ -5,7 +5,6 @@ import sys
 import threading
 import re
 import requests
-import urllib.request
 
 os.chdir(r"C:\ai\focusclient")
 sys.path.insert(0, r"C:\ai\focusclient")
@@ -24,30 +23,8 @@ fooocus_proc = subprocess.Popen([
 
 time.sleep(6)
 
-# 2. Start FastAPI Server FIRST so port 8000 is listening before tunnel opens
-print("[2/3] Launching Fibby FastAPI Server (Port 8000)...")
-
-def run_server():
-    import uvicorn
-    from server import app
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
-
-server_thread = threading.Thread(target=run_server, daemon=True)
-server_thread.start()
-
-# Wait until port 8000 is ready
-print("Waiting for FastAPI server to bind to port 8000...")
-for _ in range(15):
-    try:
-        r = urllib.request.urlopen("http://127.0.0.1:8000", timeout=2)
-        if r.getcode() == 200:
-            print("FastAPI server is live on port 8000!")
-            break
-    except:
-        time.sleep(1)
-
-# 3. Start Cloudflare Tunnel AFTER server is running and capture URL dynamically
-print("[3/3] Launching Cloudflare Tunnel & Auto-Reporting URL...")
+# 2. Start Cloudflare Tunnel and capture URL dynamically & auto-report to Render
+print("[2/3] Launching Cloudflare Tunnel & Auto-Reporting URL...")
 tunnel_proc = subprocess.Popen(
     [r"C:\ai\focusclient\cloudflared.exe", "tunnel", "--url", "http://127.0.0.1:8000"],
     stdout=subprocess.PIPE,
@@ -74,23 +51,43 @@ def monitor_tunnel():
             print(f"  Auto-reporting to Render Cloud Controller...")
             print(f"==================================================\n")
 
-            try:
-                resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
-                    "secret": "fibby_secret_123",
-                    "url": api_url
-                }, timeout=15)
-                print(f"[Auto-Report] Render response: {resp.status_code} {resp.text}")
-            except Exception as ex:
-                print(f"[Auto-Report Error]: {ex}")
+            # Auto-report to Render with up to 10 retry attempts
+            for attempt in range(1, 11):
+                try:
+                    resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
+                        "secret": "fibby_secret_123",
+                        "url": api_url
+                    }, timeout=10)
+                    if resp.status_code == 200:
+                        print(f"[Auto-Report Success] Render acknowledged active worker URL: {api_url}")
+                        break
+                    else:
+                        print(f"[Auto-Report Retry {attempt}] Render status: {resp.status_code}")
+                except Exception as ex:
+                    print(f"[Auto-Report Retry {attempt} Error]: {ex}")
+                time.sleep(3)
 
 t = threading.Thread(target=monitor_tunnel, daemon=True)
 t.start()
 
-# Keep main thread alive
+print("Waiting for Cloudflare tunnel URL assignment...")
+for _ in range(15):
+    if tunnel_url:
+        break
+    time.sleep(1)
+
+if not tunnel_url:
+    print("Warning: Cloudflare URL took longer than expected, defaulting to localhost...")
+    os.environ["PUBLIC_WORKER_URL"] = "http://127.0.0.1:8000"
+
+# 3. Start Fibby FastAPI Server
+print("[3/3] Launching Fibby FastAPI Server (Port 8000)...")
+import uvicorn
+from server import app
+
 try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+finally:
     print("Shutting down background services...")
     fooocus_proc.terminate()
     tunnel_proc.terminate()
