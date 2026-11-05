@@ -512,30 +512,20 @@ async def inpaint(
     is_render = os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", "")
     active_worker = get_active_worker_url()
 
-    # If running locally (worker mode), enforce secret header check to prevent public GPU hijacking!
-    if not is_render:
-        secret_header = request.headers.get("x-fibby-secret", "")
-        if secret_header != "fibby_secret_123":
-            return JSONResponse(status_code=403, content={"error": "Forbidden. Unauthorized direct access to local GPU worker."})
-
-    if is_render and not active_worker:
-        return JSONResponse(status_code=500, content={"error": "Server configuration error: LOCAL_WORKER_URL environment variable is missing on Render!"})
-
-    # 1. Authenticate user and get email
-    if not auth_token:
-        return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
-
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
-    s_row = cursor.fetchone()
-    if not s_row:
-        conn.close()
-        return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
-    email = s_row[0]
-
     # If running on Render (Cloud Controller mode):
     if active_worker:
+        if not auth_token:
+            return JSONResponse(status_code=401, content={"error": "Authentication required. Please register or login."})
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM sessions WHERE token = ?", (auth_token,))
+        s_row = cursor.fetchone()
+        if not s_row:
+            conn.close()
+            return JSONResponse(status_code=401, content={"error": "Invalid or expired session token."})
+        email = s_row[0]
+
         token_cost = image_count * 3
         cursor.execute("SELECT tokens FROM users WHERE email = ?", (email,))
         u_row = cursor.fetchone()
@@ -574,6 +564,38 @@ async def inpaint(
                         "X-Fibby-Secret": "fibby_secret_123"
                     }
                 )
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    res_json["tokens_remaining"] = new_tokens
+                    return res_json
+                else:
+                    return JSONResponse(status_code=resp.status_code, content={"error": f"Local worker error: {resp.text}"})
+            except Exception as e:
+                return JSONResponse(status_code=500, content={"error": f"Failed to connect to local AI GPU worker: {str(e)}"})
+
+    # Otherwise (Local GPU Worker mode): verify secret header and run job
+    secret_header = request.headers.get("x-fibby-secret", "")
+    if secret_header != "fibby_secret_123":
+        return JSONResponse(status_code=403, content={"error": "Forbidden. Unauthorized direct access to local GPU worker."})
+
+    temp_dir = "temp_inputs"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    image_path = os.path.abspath(os.path.join(temp_dir, f"img_{image.filename}"))
+    with open(image_path, "wb") as buffer:
+        shutil.copyfileobj(image.file, buffer)
+
+    try:
+        points = json.loads(mask_points)
+    except:
+        points = []
+
+    job_id = secrets.token_hex(16)
+    asyncio.create_task(process_inpaint_job(
+        job_id, image_path, prompt, negative_prompt, points, canvas_width, canvas_height, disp_width, image_count, brush_size, owner_email
+    ))
+
+    return {"job_id": job_id, "status": "processing"}
                 if resp.status_code == 200:
                     res_json = resp.json()
                     res_json["tokens_remaining"] = new_tokens
