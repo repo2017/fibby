@@ -1,0 +1,7 @@
+outputs/
+temp_inputs/
+active_tunnel_url.txt
+__pycache__/
+*.pyc
+cloudflared.exe
+*.txt
