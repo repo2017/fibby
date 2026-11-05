@@ -5,6 +5,10 @@ import sys
 import threading
 import re
 import requests
+import urllib.request
+
+os.chdir(r"C:\ai\focusclient")
+sys.path.insert(0, r"C:\ai\focusclient")
 
 print("==================================================")
 print("     Fibby Studio All-In-One Unified Server       ")
@@ -18,10 +22,32 @@ fooocus_proc = subprocess.Popen([
     r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0\Fooocus\entry_with_update.py"
 ], cwd=r"C:\ai\Fooocus_win64_2-5-0\Fooocus_win64_2-5-0")
 
-time.sleep(5)
+time.sleep(6)
 
-# 2. Start Cloudflare Tunnel and capture URL dynamically & auto-report to Render
-print("[2/3] Launching Cloudflare Tunnel & Auto-Reporting URL...")
+# 2. Start FastAPI Server FIRST so port 8000 is listening before tunnel opens
+print("[2/3] Launching Fibby FastAPI Server (Port 8000)...")
+
+def run_server():
+    import uvicorn
+    from server import app
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
+
+server_thread = threading.Thread(target=run_server, daemon=True)
+server_thread.start()
+
+# Wait until port 8000 is ready
+print("Waiting for FastAPI server to bind to port 8000...")
+for _ in range(15):
+    try:
+        r = urllib.request.urlopen("http://127.0.0.1:8000", timeout=2)
+        if r.getcode() == 200:
+            print("FastAPI server is live on port 8000!")
+            break
+    except:
+        time.sleep(1)
+
+# 3. Start Cloudflare Tunnel AFTER server is running and capture URL dynamically
+print("[3/3] Launching Cloudflare Tunnel & Auto-Reporting URL...")
 tunnel_proc = subprocess.Popen(
     [r"C:\ai\focusclient\cloudflared.exe", "tunnel", "--url", "http://127.0.0.1:8000"],
     stdout=subprocess.PIPE,
@@ -48,7 +74,6 @@ def monitor_tunnel():
             print(f"  Auto-reporting to Render Cloud Controller...")
             print(f"==================================================\n")
 
-            # Auto-report to Render cloud controller
             try:
                 resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
                     "secret": "fibby_secret_123",
@@ -61,27 +86,11 @@ def monitor_tunnel():
 t = threading.Thread(target=monitor_tunnel, daemon=True)
 t.start()
 
-# Wait up to 15 seconds for tunnel URL
-print("Waiting for Cloudflare tunnel URL assignment...")
-for _ in range(15):
-    if tunnel_url:
-        break
-    time.sleep(1)
-
-if not tunnel_url:
-    print("Warning: Cloudflare URL took longer than expected, defaulting to localhost...")
-    os.environ["PUBLIC_WORKER_URL"] = "http://127.0.0.1:8000"
-
-# 3. Start Fibby FastAPI Server
-print("[3/3] Launching Fibby FastAPI Server (Port 8000)...")
-os.chdir(r"C:\ai\focusclient")
-
-import uvicorn
-from server import app
-
+# Keep main thread alive
 try:
-    uvicorn.run(app, host="127.0.0.1", port=8000)
-finally:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
     print("Shutting down background services...")
     fooocus_proc.terminate()
     tunnel_proc.terminate()
