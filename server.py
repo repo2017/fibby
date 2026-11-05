@@ -35,23 +35,42 @@ app.add_middleware(
 )
 
 FOOOCUS_URL = "http://127.0.0.1:7865"
-_DYNAMIC_WORKER_URL = os.environ.get("LOCAL_WORKER_URL", "").strip().replace("%20", "").strip()
 
 @app.post("/api/update-worker-url")
 @app.post("/api/update-worker-url/")
 async def update_worker_url(data: dict):
-    global _DYNAMIC_WORKER_URL
     secret = data.get("secret", "")
     url = data.get("url", "")
     if secret != "fibby_secret_123":
         return JSONResponse(status_code=403, content={"error": "Unauthorized"})
     if url:
-        _DYNAMIC_WORKER_URL = url.strip().replace("%20", "").strip()
-        print(f"[Cloud Controller] Dynamically updated active worker URL to: {_DYNAMIC_WORKER_URL}")
-    return {"success": True, "active_worker_url": _DYNAMIC_WORKER_URL}
+        clean_url = url.strip().replace("%20", "").strip()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+            cursor.execute("REPLACE INTO config (key, value) VALUES ('active_worker_url', ?)", (clean_url,))
+            conn.commit()
+            conn.close()
+            print(f"[Cloud Controller] Saved active worker URL to SQLite DB: {clean_url}")
+            return {"success": True, "active_worker_url": clean_url}
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"error": f"Failed to save to DB: {str(e)}"})
+    return JSONResponse(status_code=400, content={"error": "Missing url"})
 
 def get_active_worker_url():
-    return _DYNAMIC_WORKER_URL or os.environ.get("LOCAL_WORKER_URL", "").strip().replace("%20", "").strip()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+        cursor.execute("SELECT value FROM config WHERE key = 'active_worker_url'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            return row[0]
+    except:
+        pass
+    return os.environ.get("LOCAL_WORKER_URL", "").strip().replace("%20", "").strip()
 
 PUBLIC_WORKER_URL = os.environ.get("PUBLIC_WORKER_URL", "http://127.0.0.1:8000").strip().replace("%20", "").strip()
 
