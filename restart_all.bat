@@ -5,7 +5,6 @@ echo ==================================================
 taskkill /f /im python.exe >nul 2>&1
 taskkill /f /im node.exe >nul 2>&1
 taskkill /f /im cloudflared.exe >nul 2>&1
-taskkill /f /im conhost.exe >nul 2>&1
 echo All previous processes terminated.
 
 echo ==================================================

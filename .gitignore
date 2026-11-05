@@ -4,4 +4,12 @@ active_tunnel_url.txt
 __pycache__/
 *.pyc
 cloudflared.exe
-*.txt
+*.db
+*.png
+inspect_*.py
+debug_*.py
+test_*.py
+run_*.py
+!run_backend.py
+gen_step_*.png
+test_index_*.png

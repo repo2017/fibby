@@ -34,6 +34,20 @@ tunnel_proc = subprocess.Popen(
 
 tunnel_url = None
 
+def report_to_render(api_url):
+    for attempt in range(1, 6):
+        try:
+            resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
+                "secret": "fibby_secret_123",
+                "url": api_url
+            }, timeout=10)
+            if resp.status_code == 200:
+                print(f"[Auto-Report Success] Render registered active worker URL: {api_url}")
+                break
+        except Exception as ex:
+            print(f"[Auto-Report Retry {attempt} Error]: {ex}")
+        time.sleep(2)
+
 def monitor_tunnel():
     global tunnel_url
     for line in tunnel_proc.stdout:
@@ -51,24 +65,26 @@ def monitor_tunnel():
             print(f"  Auto-reporting to Render Cloud Controller...")
             print(f"==================================================\n")
 
-            # Auto-report to Render with up to 10 retry attempts
-            for attempt in range(1, 11):
-                try:
-                    resp = requests.post("https://fibby.onrender.com/api/update-worker-url", json={
-                        "secret": "fibby_secret_123",
-                        "url": api_url
-                    }, timeout=10)
-                    if resp.status_code == 200:
-                        print(f"[Auto-Report Success] Render acknowledged active worker URL: {api_url}")
-                        break
-                    else:
-                        print(f"[Auto-Report Retry {attempt}] Render status: {resp.status_code}")
-                except Exception as ex:
-                    print(f"[Auto-Report Retry {attempt} Error]: {ex}")
-                time.sleep(3)
+            report_to_render(api_url)
 
 t = threading.Thread(target=monitor_tunnel, daemon=True)
 t.start()
+
+def periodic_heartbeat():
+    while True:
+        if tunnel_url:
+            api_url = f"{tunnel_url}/api/inpaint"
+            try:
+                requests.post("https://fibby.onrender.com/api/update-worker-url", json={
+                    "secret": "fibby_secret_123",
+                    "url": api_url
+                }, timeout=10)
+            except:
+                pass
+        time.sleep(15)
+
+hb_thread = threading.Thread(target=periodic_heartbeat, daemon=True)
+hb_thread.start()
 
 print("Waiting for Cloudflare tunnel URL assignment...")
 for _ in range(15):
